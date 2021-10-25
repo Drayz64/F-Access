@@ -8,6 +8,8 @@ DetectHiddenWindows, On
 SetTitleMatchMode, 2
 #SingleInstance, force
 
+Global voice := ComObjCreate("SAPI.SpVoice")
+
 ;-------------------------------------------------------------------------------
 ; Auto Execute - Until return, exit, hotkey/string encountered
 ;-------------------------------------------------------------------------------
@@ -21,7 +23,7 @@ global inputFile := "input.txt"
 global speechFinishedFile := "speechFinished.txt"
 deleteFiles()
 
-global scriptNames := ["drMagnifier.exe", "drWordPad.exe", "drInput.exe", "drQueue.exe", "drSpeaker.exe"]
+global scriptNames := ["drMagnifier.ahk", "drWordPad.ahk", "drInput.ahk", "drQueue.ahk", "drSpeaker.ahk"]
 startScripts()
 
 ;-------------------------------------------------------------------------------
@@ -128,12 +130,12 @@ Return
 
 ; Restart all scripts
 F12::
-    WinClose, drMagnifier.exe ahk_class AutoHotkey ; So the tray tip is visible
+    WinClose, drMagnifier.ahk ahk_class AutoHotkey ; So the tray tip is visible
 
-    WinKill, drWordPad.exe ahk_class AutoHotkey ; So the scripts are killed even if sapi speaking
-    WinKill, drSpeaker.exe ahk_class AutoHotkey
+    WinKill, drWordPad.ahk ahk_class AutoHotkey ; So the scripts are killed even if sapi speaking
+    WinKill, drSpeaker.ahk ahk_class AutoHotkey
 
-    notifyUser("Restarting")
+    voice.Speak("Restarting scripts")
     sleep 2000
     startScripts()
 Return
@@ -144,6 +146,8 @@ startScripts() {
     for index, name in scriptNames {
         Run, % name 
     }
+
+    voice.Speak("Scripts running")
 }
 
 deleteFiles() {
@@ -157,21 +161,21 @@ deleteFiles() {
 }
 Return
 
-notifyUser(text, color:="") {
-    TrayTip, , %text%
-    SetTimer, HideTrayTip, -3000
-}
-Return
+; notifyUser(text, color:="") {
+;     TrayTip, , %text%
+;     SetTimer, HideTrayTip, -3000
+; }
+; Return
 
-HideTrayTip() {
-    TrayTip  ; Attempt to hide it the normal way.
-    if SubStr(A_OSVersion,1,3) = "10." {
-        Menu Tray, NoIcon
-        Sleep 200  ; It may be necessary to adjust this sleep.
-        Menu Tray, Icon
-    }
-}
-Return
+; HideTrayTip() {
+;     TrayTip  ; Attempt to hide it the normal way.
+;     if SubStr(A_OSVersion,1,3) = "10." {
+;         Menu Tray, NoIcon
+;         Sleep 200  ; It may be necessary to adjust this sleep.
+;         Menu Tray, Icon
+;     }
+; }
+; Return
 
 closeScripts() {
     for index, name in scriptNames {
