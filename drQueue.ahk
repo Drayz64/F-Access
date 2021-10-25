@@ -1,4 +1,4 @@
-﻿#NoEnv ; Recommended for performance and compatibility with future AutoHotkey releases.
+#NoEnv ; Recommended for performance and compatibility with future AutoHotkey releases.
 ; #Warn  ; Enable warnings to assist with detecting common errors.
 SendMode Input ; Recommended for new scripts due to its superior speed and reliability.
 SetWorkingDir %A_ScriptDir% ; Ensures a consistent starting directory.
@@ -14,7 +14,7 @@ global speechFinishedFile := A_ScriptDir . "\speechFinished.txt"
 global inputFile := A_ScriptDir . "\input.txt"
 global lineNum := 1
 
-detecthiddenwindows, on ; Allows the script to detect hidden windows (so can communicate with speaker.exe)
+detecthiddenwindows, on ; Allows the script to detect hidden windows (so can communicate with speaker.ahk)
 
 #Include WatchFolder.ahk
 
