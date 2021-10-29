@@ -8,8 +8,6 @@ DetectHiddenWindows, On
 SetTitleMatchMode, 2
 #SingleInstance, force
 
-Global voice := ComObjCreate("SAPI.SpVoice")
-
 ;-------------------------------------------------------------------------------
 ; Auto Execute - Until return, exit, hotkey/string encountered
 ;-------------------------------------------------------------------------------
@@ -23,7 +21,18 @@ global inputFile := "input.txt"
 global speechFinishedFile := "speechFinished.txt"
 deleteFiles()
 
-global scriptNames := ["drMagnifier.ahk", "drWordPad.ahk", "drInput.ahk", "drQueue.ahk", "drSpeaker.ahk"]
+global voice := ComObjCreate("SAPI.SpVoice")
+
+; Alternative fix is to loop through files in working dir and populate scriptNames with files starting in "dr"
+global scriptNames := ["drMagnifier", "drWordPad", "drInput", "drQueue", "drSpeaker"]
+
+; Append each file name with the file extension of drHotKeys
+SplitPath, A_ScriptName, , , extension
+for index, fileName in scriptNames {
+    scriptNames[index] := fileName "." extension
+}
+drMagnifier := % scriptNames[1]
+
 startScripts()
 
 ;-------------------------------------------------------------------------------
@@ -99,17 +108,17 @@ Return
 
 ; Start/Stop Magnifier
 F7::
-    if (WinExist("drMagnifier.exe ahk_class AutoHotkey")) {
+    if (WinExist(drMagnifier "ahk_class AutoHotkey")) {
         WinClose
     }
     else {
-        Run, drMagnifier.exe ahk_class AutoHotkey
+        Run, %drMagnifier% "ahk_class AutoHotkey"
     }
 Return
 
 ; Zoom in magnifier or zoom in general
 NumpadAdd::
-    if WinExist("drMagnifier.exe ahk_class AutoHotkey") {
+    if WinExist(drMagnifier "ahk_class AutoHotkey") {
         Send, !{F7}
     }
 	else {
@@ -119,7 +128,7 @@ Return
 
 ; Zoom out magnifier or zoom out general
 NumpadSub::
-    if WinExist("drMagnifier.exe ahk_class AutoHotkey") {
+    if WinExist(drMagnifier "ahk_class AutoHotkey") {
         Send, !{F8}
     }
 	else {
@@ -130,12 +139,12 @@ Return
 
 ; Restart all scripts
 F12::
-    WinClose, drMagnifier.ahk ahk_class AutoHotkey ; So the tray tip is visible
+    ; Kill drWordPad and drSpeaker - the 2 scripts that use sapi speak()
+    ; as they won't be restarted using run if speak() is speaking
+    WinKill, % scriptNames[2] "ahk_class AutoHotkey"
+    WinKill, % scriptNames[5] "ahk_class AutoHotkey"
 
-    WinKill, drWordPad.ahk ahk_class AutoHotkey ; So the scripts are killed even if sapi speaking
-    WinKill, drSpeaker.ahk ahk_class AutoHotkey
-
-    voice.Speak("Restarting scripts")
+    voice.Speak("Restarting scripts", 1) ; 1 => Asynchronous speech
     sleep 2000
     startScripts()
 Return
@@ -147,7 +156,7 @@ startScripts() {
         Run, % name 
     }
 
-    voice.Speak("Scripts running")
+    voice.Speak("Scripts running", 1)
 }
 
 deleteFiles() {
@@ -161,22 +170,6 @@ deleteFiles() {
 }
 Return
 
-; notifyUser(text, color:="") {
-;     TrayTip, , %text%
-;     SetTimer, HideTrayTip, -3000
-; }
-; Return
-
-; HideTrayTip() {
-;     TrayTip  ; Attempt to hide it the normal way.
-;     if SubStr(A_OSVersion,1,3) = "10." {
-;         Menu Tray, NoIcon
-;         Sleep 200  ; It may be necessary to adjust this sleep.
-;         Menu Tray, Icon
-;     }
-; }
-; Return
-
 closeScripts() {
     for index, name in scriptNames {
         WinKill, % name 
@@ -184,3 +177,19 @@ closeScripts() {
 
     deleteFiles()
 }
+
+;-------------------------------------------------------------------------------
+; Reload on Save
+;-------------------------------------------------------------------------------
+~^s::
+    Sleep 200
+    WinGetActiveTitle, activeTitle
+    activeTitle := StrReplace(activeTitle, " - Visual Studio Code")
+
+    if (activeTitle = A_ScriptName) {
+        ToolTip, %A_ScriptName%, 1770, 959
+        sleep 800
+        ToolTip
+        Reload
+    }
+return
