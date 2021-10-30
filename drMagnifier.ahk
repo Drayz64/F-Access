@@ -8,12 +8,6 @@ SetWinDelay, 0   ; Default delay of 100ms for win__ commands
 ; Auto Execute - Until return, exit, hotkey/string encountered
 ;-------------------------------------------------------------------------------
 
-; Creates crosshair png inside ./compiledScripts when this file is compiled
-SplitPath, A_ScriptName, , , extension
-if (extension = "exe") {
-    FileInstall, Yellow3CrossHair.png, ./compiledScripts/crossHair.png, 1
-}
-
 CoordMode Mouse, Screen
 
 ; --- Prevents magnifier from obscurring taskbar ---
