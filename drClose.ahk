@@ -8,4 +8,7 @@ SetWorkingDir %A_ScriptDir% ; Ensures a consistent starting directory.
 DetectHiddenWindows, On
 SetTitleMatchMode, 2
 
-WinClose drHotKeys.ahk ahk_class AutoHotkey
+SplitPath, A_ScriptName, , , extension
+drHotKeys := "drHotKeys." extension
+
+WinClose, % drHotKeys "ahk_class AutoHotkey"
