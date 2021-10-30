@@ -14,7 +14,7 @@ global speechFinishedFile := A_ScriptDir . "\speechFinished.txt"
 global inputFile := A_ScriptDir . "\input.txt"
 global lineNum := 1
 
-detecthiddenwindows, on ; Allows the script to detect hidden windows (so can communicate with speaker.ahk)
+detecthiddenwindows, on ; Allows the script to detect hidden windows (so can communicate with drSpeaker)
 
 #Include WatchFolder.ahk
 

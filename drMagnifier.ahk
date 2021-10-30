@@ -135,7 +135,7 @@ Repaint:
     srcWidth  := frameWidth  - 2 * BorderThickness
     srcHeight := frameHeight - 2 * BorderThickness
 
-    rop := 0xCC0020 ; = ; SRCCOPY -> raster operation (list here https://docs.microsoft.com/en-us/windows/win32/gdi/ternary-raster-operations)
+    rop := 0xCC0020 ; => SRCCOPY => raster operation (list here https://docs.microsoft.com/en-us/windows/win32/gdi/ternary-raster-operations)
 
     DllCall("gdi32.dll\StretchBlt"
     , UInt, hdcDest, Int, destTLx, Int, destTLy, Int, destWidth, Int, destHeight
