@@ -12,5 +12,3 @@ SplitPath, A_ScriptName, , , extension
 drHotKeys := "drHotKeys." extension
 
 WinClose, % drHotKeys "ahk_class AutoHotkey"
-
-;test
