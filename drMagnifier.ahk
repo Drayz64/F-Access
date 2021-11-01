@@ -17,7 +17,7 @@ global screenHeight := workAreaBottom
 
 ; --- Retrieving saved settings ---
 Settings := []
-Loop, Read, drMagnifierSettings.txt
+Loop, Read, drMagnifierSettings.txt 
 {
     Settings.Insert(A_LoopReadLine)
 }
@@ -83,7 +83,7 @@ Gui +AlwaysOnTop -Caption +ToolWindow -DPIScale +E0x20 ; +0x800000 ; same as +bo
 Gui, Margin, % BorderThickness, % BorderThickness
 Gui, Color, % BorderColor
 
-width := frameWidth - (BorderThickness*2)
+width  := frameWidth  - (BorderThickness*2)
 height := frameHeight - (BorderThickness*2)
 
 Gui, Add, Text, vframeBorder w%width% h%height% 0x6, ; Draw a white static control
@@ -100,8 +100,8 @@ Repaint:
     MouseGetPos x, y
 
     ; Prevents the frame from going off screen
-    frameX := In(x - (frameWidth /2),  0, A_ScreenWidth  - frameWidth ) 
-    frameY := In(y - (frameHeight/2), -1, A_ScreenHeight - frameHeight) ; TODO Not sure why -1 is neccessary
+    frameX := In(x - (frameWidth /2), 2, A_ScreenWidth  - frameWidth ) 
+    frameY := In(y - (frameHeight/2), 2, A_ScreenHeight - frameHeight) ; TODO Not sure why -1 is neccessary
 
 
     ; Moving frame with the mouse
@@ -168,38 +168,30 @@ Return
 ; Auto Execute End
 ;-------------------------------------------------------------------------------
 
-checkVariables() 
-{
-    if (zoom < 1 or zoom > 32) 
-    {
+checkVariables() {
+    if (zoom < 1 or zoom > 32) {
         zoom := 4
     }
 
-    if (guiWidth  > screenWidth  or guiWidth  <= 0) 
-    {
+    if (guiWidth  > screenWidth  or guiWidth  <= 0) {
         guiWidth  := screenWidth  / 3
     }
 
-    if (guiHeight > screenHeight or guiHeight <= 0) 
-    {
+    if (guiHeight > screenHeight or guiHeight <= 0) {
         guiHeight := screenHeight / 3
     }
 
-    if (antialize != 1 and antialize != 0) 
-    {
+    if (antialize != 1 and antialize != 0) {
         antialize := False
     }
 }
 Return
 
-checkForIntersect(frameX, frameY, frameWidth, frameHeight)
-{
+checkForIntersect(frameX, frameY, frameWidth, frameHeight) {
     counter := 0
 
-    if (atTopLeft)
-    {
-        if (guiWidth > frameX and guiHeight > frameY)
-        {
+    if (atTopLeft) {
+        if (guiWidth > frameX and guiHeight > frameY) {
             x := screenWidth - guiWidth
             y := screenHeight - guiHeight
             WinMove, Magnifier, , x, y
@@ -212,8 +204,7 @@ checkForIntersect(frameX, frameY, frameWidth, frameHeight)
     frameRx := frameX + frameWidth
     frameBy := frameY + frameHeight
     
-    if (screenWidth - guiWidth < frameRx and screenHeight - guiHeight < frameBy)
-    {
+    if (screenWidth - guiWidth < frameRx and screenHeight - guiHeight < frameBy) {
         WinMove, Magnifier, , 0, 0
         atTopLeft := True
     }    
@@ -228,8 +219,7 @@ Return
     frameHeight := guiHeight / zoom
 Return
 
-In(x,a,b) ; closest number to x in [a,b]
-{
+In(x,a,b) { ; closest number to x in [a,b]
     ; x = TLx of the frame (and TLy)
     ; a = 0
     ; b = A_screenwidth - frameWidth (and height)
@@ -291,3 +281,19 @@ Return
     saveSettings()
     ExitApp
 Return
+
+;-------------------------------------------------------------------------------
+; Reload on Save
+;-------------------------------------------------------------------------------
+~^s::
+    Sleep 200
+    WinGetActiveTitle, activeTitle
+    activeTitle := StrReplace(activeTitle, " - Visual Studio Code")
+
+    if (activeTitle = A_ScriptName) {
+        ToolTip, %A_ScriptName%, 1770, 959
+        sleep 800
+        ToolTip
+        Reload
+    }
+return
