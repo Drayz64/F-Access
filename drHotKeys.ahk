@@ -34,6 +34,7 @@ for index, fileName in scriptNames {
 drMagnifier := % scriptNames[1]
 
 startScripts()
+voice.Speak("Successfully started", 1)
 
 ;-------------------------------------------------------------------------------
 ; Auto Execute End
@@ -110,9 +111,11 @@ Return
 F7::
     if (WinExist(drMagnifier "ahk_class AutoHotkey")) {
         WinClose
+        voice.speak("Magnifier Closed", 1)
     }
     else {
         Run, %drMagnifier% "ahk_class AutoHotkey"
+        voice.speak("Magnifier Open", 1)
     }
 Return
 
@@ -144,9 +147,9 @@ F12::
     WinKill, % scriptNames[2] "ahk_class AutoHotkey"
     WinKill, % scriptNames[5] "ahk_class AutoHotkey"
 
-    voice.Speak("Restarting scripts", 1) ; 1 => Asynchronous speech
-    sleep 2000
+    voice.Speak("Restarting")
     startScripts()
+    voice.Speak("Successfully restarted", 1) ; 1 => Asynchronous speech
 Return
 
 startScripts() {
@@ -155,8 +158,6 @@ startScripts() {
     for index, name in scriptNames {
         Run, % name 
     }
-
-    voice.Speak("Scripts running", 1)
 }
 
 deleteFiles() {
