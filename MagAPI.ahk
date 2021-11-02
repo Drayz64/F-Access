@@ -18,6 +18,7 @@ global screenWidth  := workAreaRight
 global screenHeight := workAreaBottom
 
 global ctrl_in_BR := True ; ctrl starts in the BR of the screen
+resizingAllowed := False
 
 ; ---------------------------
 ;  Creating the host window
@@ -26,10 +27,15 @@ global ctrl_in_BR := True ; ctrl starts in the BR of the screen
 ; Using WS_EX_TRANSPARENT (0x20), allowing for click through, would be useful for a full screen or lens magnifier
 
 ; WS_EX_LAYERED (80000), WS_EX_CLIENTEDGE (0x200), WS_EX_DLGMODALFRAME (0x1)
-Gui, +AlwaysOnTop +ToolWindow -Caption -DPIScale +E0x80201 +HwndhostHandle
-Gui, Show, % "w" ctrlWidth "h" ctrlHeight "x" screenWidth - ctrlWidth - 10 "y" screenHeight - ctrlHeight - 10 "NoActivate", MagnifierWindowAHK
+Gui +AlwaysOnTop +ToolWindow -Caption -DPIScale +E0x80201 +HwndhostHandle
 
-WinSet, Transparent, 255, % "ahk_id " hostHandle ; Setting host window to be fully opaque (not transparent) => Using WinSet instead of SetLayeredWindowAttributes()
+; Setting host's initial position to the BR
+hostX := screenWidth  - ctrlWidth  - 10
+hostY := screenHeight - ctrlHeight - 10
+
+Gui Show, % "w" ctrlWidth "h" ctrlHeight "x" hostX "y" hostY "NoActivate", MagnifierWindowAHK
+
+WinSet, Transparent, 255, % "ahk_id " hostHandle ; Setting host window to be fully opaque => Using WinSet instead of SetLayeredWindowAttributes()
 
 vSfx := (A_PtrSize=8) ? "Ptr" : ""
 hInstance := DllCall("GetWindowLong" vSfx, "Ptr",hostHandle, "Int",-6) ; hInstance := -6 -> A handle to the instance of the module to be associated with the magnifier control window
@@ -58,12 +64,11 @@ MS_SHOWMAGNIFIEDCURSOR := 0x1
 winStyle := WS_CHILD | MS_SHOWMAGNIFIEDCURSOR | WS_VISIBLE
 windowClassName := "Magnifier" ; = WC_Magnifier
 windowName := "MagnifierWindow"
-initTLx := 0
+initTLx := 0 ; Ctrl window is a child window of host window, therefore x = TLx of ctrl window relative to the TLx of host window
 initTLy := 0
 parentHwnd := hostHandle
 
 ctrlHandle := DllCall("CreateWindowEx", "UInt",0, "Str",windowClassName, "Str",windowName, "UInt",winStyle, "Int",initTLx, "Int",initTLy, "Int",ctrlWidth, "Int",ctrlHeight, "Ptr",parentHwnd, "Ptr",0, "Ptr",hInstance, "Ptr",0)
-
 
 ; ----------------------------------------------
 ;  Setting Magnification Factor for ctrlHandle
@@ -77,7 +82,6 @@ ctrlHandle := DllCall("CreateWindowEx", "UInt",0, "Str",windowClassName, "Str",w
 
 VarSetCapacity(MAGTRANSFORM, 36, 0) ; Allows MAGTRANSFORM to store 36 bytes and fills those bytes with 0
 
-; NumPut(Number, VarOrAddress [, Offset = 0, Type = "UInt"]) Offset => # of bytes added to VarOrAddress determining the target address.
 ; A Float is stored using 4 bytes therefore middle is the 16-19th byte (5th float) and the br is 28-31st byte (9th float) 
 NumPut(zoom, MAGTRANSFORM, (1-1)*4, "Float")
 NumPut(zoom, MAGTRANSFORM, (5-1)*4, "Float")
@@ -99,21 +103,21 @@ DllCall("magnification\MagSetLensUseBitmapSmoothing", "Ptr",ctrlHandle, "Int",1)
 
 BorderThickness := 4, BorderColor:="d9a518"
 
-Gui 2: +AlwaysOnTop +ToolWindow -Caption -DPIScale +E0x20 +Hwndtest ; WS_EX_TRANSPARENT (0x20) Allows for click through
+Gui 2: +AlwaysOnTop +ToolWindow -Caption -DPIScale +E0x20 ; WS_EX_TRANSPARENT (0x20) Allows for click through
 Gui 2: Margin, % BorderThickness, % BorderThickness
 Gui 2: Color, % BorderColor
 
 width  := srcWidth
 height := srcHeight + 1 ; Adding to srcHeight extends the transparent section downards
 
-Gui 2: Add, Text, vframeBorder w%width% h%height% 0x6 ; SS_WHITERECT (0x6), Creates a white rectangle the same size as src rect
+Gui 2: Add, Text, vframe_InternalRect w%width% h%height% 0x6 ; SS_WHITERECT (0x6), Creates a white rectangle the same size as src rect
 Gui 2: Show, NoActivate, Frame
 WinSet, TransColor, FFFFFF, Frame ; Makes the white rectangle inside frame transparent
 
 
 ; TODO
-; - Understand why the + 1 is neccessary
-; - Implement ability to resize magnifier window with #f
+; - Understand why the + 1 is neccessary -> Not a total solution, yellow still visible with some levels of zoom
+; - Zoom increase use += 0.25 and -= 0.25
 
 ; - Implement magnifier reading by running magnify.exe then minimizing/hiding it???
 ; - Can change color of border in Display Settings/Colours 
@@ -136,11 +140,16 @@ Loop
 
 	; Setting the soruce rectangle
 	VarSetCapacity(Rect, 16, 0) ; Rect contains 4 four-byte integers
-	NumPut(srcTLx, Rect, 0,  "Int")
-	NumPut(srcTLy, Rect, 4,  "Int")
-	NumPut(ctrlWidth, Rect, 8,  "Int") ; BRx but actually width (removing/changing these two does nothing so not sure what they are for)
+	NumPut(srcTLx, Rect, 0, "Int")
+	NumPut(srcTLy, Rect, 4, "Int")
+	NumPut(ctrlWidth , Rect,  8, "Int") ; BRx but actually width (removing/changing these two does nothing so not sure what they are used for)
 	NumPut(ctrlHeight, Rect, 12, "Int") ; BRy but actually height
 	DllCall("magnification\MagSetWindowSource", "Ptr",ctrlHandle, "Ptr",&Rect) ; Specifies what part of the screen to magnify (source rectangle)
+
+	; Prevnting intersection handling if resizing allowed
+	if (resizingAllowed) {
+		Continue
+	}
 
 	; Handling intersection between the frame (src rectnagle) and the ctrl window
 	if (ctrl_in_BR) {
@@ -189,8 +198,33 @@ clamp(val, min, max) {
 	NumPut(zoom, MAGTRANSFORM, (5-1)*4, "Float")
 
 	DllCall("magnification\MagSetWindowTransform", "Ptr",ctrlHandle, "Ptr",&MAGTRANSFORM) ; Sets transformation matrix
-	
-	GuiControl, 2:Move, frameBorder, % "w" srcWidth "h" srcHeight ; Resizes the white rect inside frame to fit the new size of src rect
+
+	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
+Return
+
+; Called when the user resizes the host window
+GuiSize:
+    ctrlWidth  := A_GuiWidth
+    ctrlHeight := A_GuiHeight
+
+    srcWidth  := ctrlWidth  / zoom
+    srcHeight := ctrlHeight / zoom
+
+	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
+
+	WinMove, % "ahk_id" ctrlHandle, , 0, 0, ctrlWidth, ctrlHeight ; Resizes ctrl window so that it fills the inside of host window ( filling it with the magnified src rect)
+Return
+
+; Toggles the ability to resize the host window
+#f::
+    resizingAllowed := !resizingAllowed
+
+    if (resizingAllowed) {
+        Gui +Resize ; Allows window to be resized
+        return
+    }
+
+    Gui -Resize ; So the white bar from resizing isn't visible
 Return
 
 #n::
@@ -198,7 +232,6 @@ Uninitialize:
 Gui, Destroy
 DllCall("magnification\MagUninitialize") ; Destroy the magnifier run-time objects, freeing the associated system resources
 ExitApp
-#IfWinActive
 
 ;-------------------------------------------------------------------------------
 ; Reload on Save
