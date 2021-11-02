@@ -132,7 +132,6 @@ Loop
 	srcTLy := clamp(mouseY - (srcHeight / 2), 0, A_ScreenHeight - srcHeight)
 
     ; Moving frame with the mouse
-	GuiControl, 2:Move, frameBorder, % "w" srcWidth "h" srcHeight ; When users zooms this changes the border to fit the new size
     WinMove Frame,, % srcTLx - BorderThickness, % srcTLy - BorderThickness, % srcWidth + (2*BorderThickness), % srcHeight + (2*BorderThickness) + 1 ; bigger + value for height extends yellow border downwards
 
 	; Setting the soruce rectangle
@@ -190,6 +189,8 @@ clamp(val, min, max) {
 	NumPut(zoom, MAGTRANSFORM, (5-1)*4, "Float")
 
 	DllCall("magnification\MagSetWindowTransform", "Ptr",ctrlHandle, "Ptr",&MAGTRANSFORM) ; Sets transformation matrix
+	
+	GuiControl, 2:Move, frameBorder, % "w" srcWidth "h" srcHeight ; Resizes the white rect inside frame to fit the new size of src rect
 Return
 
 #n::
