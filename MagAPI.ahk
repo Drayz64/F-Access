@@ -5,14 +5,14 @@ SetWinDelay, 0   ; Default delay of 100ms for win__ commands
 
 OnExit, Uninitialize
 
-ctrlWidth  := 600
-ctrlHeight := 250
+hostWidth  := 600
+hostHeight := 250
 zoom := 4
-; zoom *= 1.189207115
 
-srcWidth  := ctrlWidth  / zoom
-srcHeight := ctrlHeight / zoom
+srcWidth  := hostWidth  / zoom
+srcHeight := hostHeight / zoom
 
+; Removing the taskbar from A_ScreenHeight
 SysGet, workArea, MonitorWorkArea
 global screenWidth  := workAreaRight
 global screenHeight := workAreaBottom
@@ -30,10 +30,10 @@ resizingAllowed := False
 Gui +AlwaysOnTop +ToolWindow -Caption -DPIScale +E0x80201 +HwndhostHandle
 
 ; Setting host's initial position to the BR
-hostX := screenWidth  - ctrlWidth  - 10
-hostY := screenHeight - ctrlHeight - 10
+hostX := screenWidth  - hostWidth  - 10
+hostY := screenHeight - hostHeight - 10
 
-Gui Show, % "w" ctrlWidth "h" ctrlHeight "x" hostX "y" hostY "NoActivate", MagnifierWindowAHK
+Gui Show, % "w" hostWidth "h" hostHeight "x" hostX "y" hostY "NoActivate", MagnifierWindowAHK
 
 WinSet, Transparent, 255, % "ahk_id " hostHandle ; Setting host window to be fully opaque => Using WinSet instead of SetLayeredWindowAttributes()
 
@@ -68,7 +68,7 @@ initTLx := 0 ; Ctrl window is a child window of host window, therefore x = TLx o
 initTLy := 0
 parentHwnd := hostHandle
 
-ctrlHandle := DllCall("CreateWindowEx", "UInt",0, "Str",windowClassName, "Str",windowName, "UInt",winStyle, "Int",initTLx, "Int",initTLy, "Int",ctrlWidth, "Int",ctrlHeight, "Ptr",parentHwnd, "Ptr",0, "Ptr",hInstance, "Ptr",0)
+ctrlHandle := DllCall("CreateWindowEx", "UInt",0, "Str",windowClassName, "Str",windowName, "UInt",winStyle, "Int",initTLx, "Int",initTLy, "Int",hostWidth, "Int",hostHeight, "Ptr",parentHwnd, "Ptr",0, "Ptr",hInstance, "Ptr",0)
 
 ; ----------------------------------------------
 ;  Setting Magnification Factor for ctrlHandle
@@ -142,8 +142,8 @@ Loop
 	VarSetCapacity(Rect, 16, 0) ; Rect contains 4 four-byte integers
 	NumPut(srcTLx, Rect, 0, "Int")
 	NumPut(srcTLy, Rect, 4, "Int")
-	NumPut(ctrlWidth , Rect,  8, "Int") ; BRx but actually width (removing/changing these two does nothing so not sure what they are used for)
-	NumPut(ctrlHeight, Rect, 12, "Int") ; BRy but actually height
+	NumPut(hostWidth , Rect,  8, "Int") ; BRx but actually width (removing/changing these two does nothing so not sure what they are used for)
+	NumPut(hostHeight, Rect, 12, "Int") ; BRy but actually height
 	DllCall("magnification\MagSetWindowSource", "Ptr",ctrlHandle, "Ptr",&Rect) ; Specifies what part of the screen to magnify (source rectangle)
 
 	; Prevnting intersection handling if resizing allowed
@@ -156,13 +156,13 @@ Loop
 		srcBRx := srcTLx + srcWidth
 		srcBRy := srcTLy + srcHeight
 
-		if (screenWidth - ctrlWidth - 10 < srcBRx and screenHeight - ctrlHeight - 10 < srcBRy) {
+		if (screenWidth - hostWidth - 10 < srcBRx and screenHeight - hostHeight - 10 < srcBRy) {
 			WinMove, % "ahk_id" hostHandle,, 0, 0
 			ctrl_in_BR := False
 		}
 	}
-	else if (ctrlWidth + 10 > srcTLx and ctrlHeight + 10 > srcTLy) {
-		WinMove, % "ahk_id" hostHandle,, screenWidth - ctrlWidth - 10, screenHeight - ctrlHeight - 10
+	else if (hostWidth + 10 > srcTLx and hostHeight + 10 > srcTLy) {
+		WinMove, % "ahk_id" hostHandle,, screenWidth - hostWidth - 10, screenHeight - hostHeight - 10
 		ctrl_in_BR := True
 	}
 }
@@ -191,8 +191,8 @@ clamp(val, min, max) {
         zoom /= 1.189207115
     }        
 
-	srcWidth  := ctrlWidth  / zoom
-	srcHeight := ctrlHeight / zoom
+	srcWidth  := hostWidth  / zoom
+	srcHeight := hostHeight / zoom
 
 	NumPut(zoom, MAGTRANSFORM, (1-1)*4, "Float")
 	NumPut(zoom, MAGTRANSFORM, (5-1)*4, "Float")
@@ -204,15 +204,15 @@ Return
 
 ; Called when the user resizes the host window
 GuiSize:
-    ctrlWidth  := A_GuiWidth
-    ctrlHeight := A_GuiHeight
+    hostWidth  := A_GuiWidth
+    hostHeight := A_GuiHeight
 
-    srcWidth  := ctrlWidth  / zoom
-    srcHeight := ctrlHeight / zoom
+    srcWidth  := hostWidth  / zoom
+    srcHeight := hostHeight / zoom
 
 	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
 
-	WinMove, % "ahk_id" ctrlHandle, , 0, 0, ctrlWidth, ctrlHeight ; Resizes ctrl window so that it fills the inside of host window ( filling it with the magnified src rect)
+	WinMove, % "ahk_id" ctrlHandle, , 0, 0, hostWidth, hostHeight ; Resizes ctrl window so that it fills the inside of host window ( filling it with the magnified src rect)
 Return
 
 ; Toggles the ability to resize the host window
