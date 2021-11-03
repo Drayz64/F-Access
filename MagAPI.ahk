@@ -1,24 +1,27 @@
-﻿#NoEnv
+#NoEnv
 #SingleInstance, force
 SetBatchLines -1 ; Script runs at max speed
 SetWinDelay, 0   ; Default delay of 100ms for win__ commands
 
 OnExit, Uninitialize
 
-hostWidth  := 600
-hostHeight := 250
-zoom := 4
+; A_ScreenHeight includes the taskbar so using different variable that doesn't have the taskbar
+SysGet, workArea, MonitorWorkArea
+screenWidth  := workAreaRight
+screenHeight := workAreaBottom
+
+; Retrieving saved settings
+IniRead, zoom, drMagSettings.ini, MagFactor, Zoom, 2
+IniRead, hostWidth , drMagSettings.ini, HostSize,  Width, % screenWidth  / 2.5
+IniRead, hostHeight, drMagSettings.ini, HostSize, Height, % screenHeight / 5
 
 srcWidth  := hostWidth  / zoom
 srcHeight := hostHeight / zoom
 
-; Removing the taskbar from A_ScreenHeight
-SysGet, workArea, MonitorWorkArea
-global screenWidth  := workAreaRight
-global screenHeight := workAreaBottom
+hostInBr := True         ; Host starts in the BR of the screen
+resizingAllowed := False ; Magnifier starts out not resizable
 
-global ctrl_in_BR := True ; ctrl starts in the BR of the screen
-resizingAllowed := False
+zoomStep := 0.5 ; 50%
 
 ; ---------------------------
 ;  Creating the host window
@@ -58,13 +61,13 @@ DllCall("magnification\MagInitialize")
 ;  Creating the magnifier control window
 ; ----------------------------------------
 
-WS_CHILD := 0x40000000
+WS_CHILD   := 0x40000000
 WS_VISIBLE := 0x10000000
 MS_SHOWMAGNIFIEDCURSOR := 0x1
 winStyle := WS_CHILD | MS_SHOWMAGNIFIEDCURSOR | WS_VISIBLE
 windowClassName := "Magnifier" ; = WC_Magnifier
 windowName := "MagnifierWindow"
-initTLx := 0 ; Ctrl window is a child window of host window, therefore x = TLx of ctrl window relative to the TLx of host window
+initTLx := 0 ; Ctrl window is a child window of host window, therefore x = TLx of ctrl window, relative to the TLx of host window
 initTLy := 0
 parentHwnd := hostHandle
 
@@ -97,9 +100,9 @@ DllCall("magnification\MagSetWindowTransform", "Ptr",ctrlHandle, "Ptr",&MAGTRANS
 DllCall("magnification\MagSetLensUseBitmapSmoothing", "Ptr",ctrlHandle, "Int",1) ; Undocumented smoothing function
 
 
-; ---------------------------------
-;  Frame displaying src rectangle
-; ---------------------------------
+; ------------------------------------------------
+;  Creating src rectangle frame around the mouse
+; ------------------------------------------------
 
 BorderThickness := 4, BorderColor:="d9a518"
 
@@ -116,11 +119,11 @@ WinSet, TransColor, FFFFFF, Frame ; Makes the white rectangle inside frame trans
 
 
 ; TODO
-; - Understand why the + 1 is neccessary -> Not a total solution, yellow still visible with some levels of zoom
-; - Zoom increase use += 0.25 and -= 0.25
+; - Understand why the + 1 is neccessary -> Not a total solution, yellow still visible with some levels of zoom e.g. 400% 
+; - Check setting variables from the ini are sensible???
 
 ; - Implement magnifier reading by running magnify.exe then minimizing/hiding it???
-; - Can change color of border in Display Settings/Colours 
+; - Can change color of border in Display Settings/Colours
 
 ; -------------------------------------------------------
 ;  Updating the source rectangle to the mouses location
@@ -146,24 +149,24 @@ Loop
 	NumPut(hostHeight, Rect, 12, "Int") ; BRy but actually height
 	DllCall("magnification\MagSetWindowSource", "Ptr",ctrlHandle, "Ptr",&Rect) ; Specifies what part of the screen to magnify (source rectangle)
 
-	; Prevnting intersection handling if resizing allowed
+	; Preventing intersection handling if resizing allowed
 	if (resizingAllowed) {
 		Continue
 	}
 
 	; Handling intersection between the frame (src rectnagle) and the ctrl window
-	if (ctrl_in_BR) {
+	if (hostInBr) {
 		srcBRx := srcTLx + srcWidth
 		srcBRy := srcTLy + srcHeight
 
 		if (screenWidth - hostWidth - 10 < srcBRx and screenHeight - hostHeight - 10 < srcBRy) {
 			WinMove, % "ahk_id" hostHandle,, 0, 0
-			ctrl_in_BR := False
+			hostInBr := False
 		}
 	}
 	else if (hostWidth + 10 > srcTLx and hostHeight + 10 > srcTLy) {
 		WinMove, % "ahk_id" hostHandle,, screenWidth - hostWidth - 10, screenHeight - hostHeight - 10
-		ctrl_in_BR := True
+		hostInBr := True
 	}
 }
 return
@@ -183,24 +186,32 @@ clamp(val, min, max) {
 ; --- Change zoom ---
 !F7::
 !F8::
-    if (zoom < 31 and (A_ThisHotKey = "!F7")) {
-        zoom *= 1.189207115 ; sqrt(sqrt(2))
+    if (zoom <= 16 - zoomStep and (A_ThisHotKey = "!F7")) { ; 1600%
+        zoom += zoomStep
     }        
     
-    if (zoom > 1 and (A_ThisHotKey = "!F8")) {
-        zoom /= 1.189207115
-    }        
+    if (zoom >= 1 + zoomStep and (A_ThisHotKey = "!F8")) { ; 100%
+        zoom -= zoomStep
+    }
+
+	; Displaying the new zoom value to the user
+	ToolTip, % Floor(zoom*100) "%", A_ScreenWidth/2, A_ScreenHeight/2
+	SetTimer, removeToolTip, -1000
 
 	srcWidth  := hostWidth  / zoom
 	srcHeight := hostHeight / zoom
+
+	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
 
 	NumPut(zoom, MAGTRANSFORM, (1-1)*4, "Float")
 	NumPut(zoom, MAGTRANSFORM, (5-1)*4, "Float")
 
 	DllCall("magnification\MagSetWindowTransform", "Ptr",ctrlHandle, "Ptr",&MAGTRANSFORM) ; Sets transformation matrix
-
-	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
 Return
+
+RemoveToolTip:
+	ToolTip
+return
 
 ; Called when the user resizes the host window
 GuiSize:
@@ -229,8 +240,12 @@ Return
 
 #n::
 Uninitialize:
-Gui, Destroy
-DllCall("magnification\MagUninitialize") ; Destroy the magnifier run-time objects, freeing the associated system resources
+	Gui, Destroy
+	DllCall("magnification\MagUninitialize") ; Destroy the magnifier run-time objects, freeing the associated system resources
+
+	IniWrite, % zoom, drMagSettings.ini, MagFactor, Zoom
+	IniWrite, % hostWidth , drMagSettings.ini, HostSize,  Width
+	IniWrite, % hostHeight, drMagSettings.ini, HostSize, Height
 ExitApp
 
 ;-------------------------------------------------------------------------------
