@@ -40,7 +40,6 @@ getTypedWord() {
     FileReadLine, typedWord, %inputFile%, lineNum
 
     if (ErrorLevel = 1) {
-        ;msgbox % "Fixing line num"
         fixLineNum()
         return
     }
@@ -75,8 +74,6 @@ speakWord(word) {
 
 ; Whilst speaking other words may have been entered and then added to the queue
 sendWordsFromQueue() {
-    speakerBusy := False
-
     ; Creation used to detect speaker has finished so need to delete
     FileDelete, % speechFinishedFile
 
@@ -84,5 +81,9 @@ sendWordsFromQueue() {
 
     if (head != "") {
         speakWord(head)
+        return
     }
+
+    ; Queue empty, so want next word from input.txt be spoken instead of added to the queue
+    speakerBusy := False 
 }

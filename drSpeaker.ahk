@@ -27,3 +27,4 @@ speak:
     voice.Speak(word)
     FileAppend, , %filePath% ; Create a text file to tell input_queue to send the next word
 return
+
