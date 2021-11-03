@@ -1,27 +1,44 @@
-﻿;Magnification API and AutoHotkey - Ask for Help - AutoHotkey Community
-;http://www.autohotkey.com/board/topic/64060-magnification-api-and-autohotkey/
-
+#NoEnv
 #SingleInstance, force
+SetBatchLines -1 ; Script runs at max speed
 SetWinDelay, 0   ; Default delay of 100ms for win__ commands
 
 OnExit, Uninitialize
 
-ctrlW := 600, ctrlH := 250
-zoom := 4
-; zoom *= 1.189207115
-vDoWinWithinScreen := 1
-vOffset := 0 ;window within screen offset
-; vOffset := 50
+; A_ScreenHeight includes the taskbar so using different variable that doesn't have the taskbar
+SysGet, workArea, MonitorWorkArea
+screenWidth  := workAreaRight
+screenHeight := workAreaBottom
+
+; Retrieving saved settings
+IniRead, zoom, drMagSettings.ini, MagFactor, Zoom, 4
+IniRead, hostWidth , drMagSettings.ini, HostSize,  Width, % screenWidth  / 2.5
+IniRead, hostHeight, drMagSettings.ini, HostSize, Height, % screenHeight / 5
+
+srcWidth  := hostWidth  / zoom
+srcHeight := hostHeight / zoom
+
+hostInBr := True         ; Host starts in the BR of the screen
+resizingAllowed := False ; Magnifier starts out not resizable
+
+zoomStep := 0.5 ; 50%
 
 ; ---------------------------
 ;  Creating the host window
 ; ---------------------------
 
-; WS_EX_LAYERED (80000), WS_EX_CLIENTEDGE (0x200), WS_EX_WINDOWEDGE (0x100), ***WS_EX_TRANSPARENT (0x20)*** Transparent allows for user to click through, WS_EX_DLGMODALFRAME (0x1)
-Gui, +AlwaysOnTop +ToolWindow -Caption +E0x80201 +HwndhostHandle
-Gui, Show, % "w" ctrlW "h" ctrlH "x650 y0 NoActivate", MagnifierWindowAHK
+; Using WS_EX_TRANSPARENT (0x20), allowing for click through, would be useful for a full screen or lens magnifier
 
-WinSet, Transparent, 255, % "ahk_id " hostHandle ; Setting host window to be fully opaque (not transparent) => Using WinSet instead of SetLayeredWindowAttributes()
+; WS_EX_LAYERED (80000), WS_EX_CLIENTEDGE (0x200), WS_EX_DLGMODALFRAME (0x1)
+Gui +AlwaysOnTop +ToolWindow -Caption -DPIScale +E0x80201 +HwndhostHandle
+
+; Setting host's initial position to the BR
+hostX := screenWidth  - hostWidth  - 10
+hostY := screenHeight - hostHeight - 10
+
+Gui Show, % "w" hostWidth "h" hostHeight "x" hostX "y" hostY "NoActivate", MagnifierWindowAHK
+
+WinSet, Transparent, 255, % "ahk_id " hostHandle ; Setting host window to be fully opaque => Using WinSet instead of SetLayeredWindowAttributes()
 
 vSfx := (A_PtrSize=8) ? "Ptr" : ""
 hInstance := DllCall("GetWindowLong" vSfx, "Ptr",hostHandle, "Int",-6) ; hInstance := -6 -> A handle to the instance of the module to be associated with the magnifier control window
@@ -44,18 +61,17 @@ DllCall("magnification\MagInitialize")
 ;  Creating the magnifier control window
 ; ----------------------------------------
 
-WS_CHILD := 0x40000000
+WS_CHILD   := 0x40000000
 WS_VISIBLE := 0x10000000
 MS_SHOWMAGNIFIEDCURSOR := 0x1
 winStyle := WS_CHILD | MS_SHOWMAGNIFIEDCURSOR | WS_VISIBLE
 windowClassName := "Magnifier" ; = WC_Magnifier
 windowName := "MagnifierWindow"
-initTLx := 0 ; Inital TL horizontal position of the window
+initTLx := 0 ; Ctrl window is a child window of host window, therefore x = TLx of ctrl window, relative to the TLx of host window
 initTLy := 0
 parentHwnd := hostHandle
 
-ctrlHandle := DllCall("CreateWindowEx", "UInt",0, "Str",windowClassName, "Str",windowName, "UInt",winStyle, "Int",initTLx, "Int",initTLy, "Int",ctrlW, "Int",ctrlH, "Ptr",parentHwnd, "Ptr",0, "Ptr",hInstance, "Ptr",0)
-
+ctrlHandle := DllCall("CreateWindowEx", "UInt",0, "Str",windowClassName, "Str",windowName, "UInt",winStyle, "Int",initTLx, "Int",initTLy, "Int",hostWidth, "Int",hostHeight, "Ptr",parentHwnd, "Ptr",0, "Ptr",hInstance, "Ptr",0)
 
 ; ----------------------------------------------
 ;  Setting Magnification Factor for ctrlHandle
@@ -69,13 +85,12 @@ ctrlHandle := DllCall("CreateWindowEx", "UInt",0, "Str",windowClassName, "Str",w
 
 VarSetCapacity(MAGTRANSFORM, 36, 0) ; Allows MAGTRANSFORM to store 36 bytes and fills those bytes with 0
 
-; NumPut(Number, VarOrAddress [, Offset = 0, Type = "UInt"]) Offset => # of bytes added to VarOrAddress determining the target address.
 ; A Float is stored using 4 bytes therefore middle is the 16-19th byte (5th float) and the br is 28-31st byte (9th float) 
 NumPut(zoom, MAGTRANSFORM, (1-1)*4, "Float")
 NumPut(zoom, MAGTRANSFORM, (5-1)*4, "Float")
-NumPut(1, MAGTRANSFORM, (9-1)*4, "Float")
+NumPut(   1, MAGTRANSFORM, (9-1)*4, "Float")
 
-DllCall("magnification\MagSetWindowTransform", "Ptr",ctrlHandle, "Ptr",&MAGTRANSFORM) ; Sets transformation matrix -> specifies magnification factor
+DllCall("magnification\MagSetWindowTransform", "Ptr",ctrlHandle, "Ptr",&MAGTRANSFORM) ; Sets transformation matrix
 
 
 ; ------------
@@ -85,14 +100,30 @@ DllCall("magnification\MagSetWindowTransform", "Ptr",ctrlHandle, "Ptr",&MAGTRANS
 DllCall("magnification\MagSetLensUseBitmapSmoothing", "Ptr",ctrlHandle, "Int",1) ; Undocumented smoothing function
 
 
+; ------------------------------------------------
+;  Creating src rectangle frame around the mouse
+; ------------------------------------------------
+
+BorderThickness := 4, BorderColor:="d9a518"
+
+Gui 2: +AlwaysOnTop +ToolWindow -Caption -DPIScale +E0x20 ; WS_EX_TRANSPARENT (0x20) Allows for click through
+Gui 2: Margin, % BorderThickness, % BorderThickness
+Gui 2: Color, % BorderColor
+
+width  := srcWidth  + 1
+height := srcHeight + 1 ; Adding to srcHeight extends the transparent section downards
+
+Gui 2: Add, Text, vframe_InternalRect w%width% h%height% 0x6 ; SS_WHITERECT (0x6), Creates a white rectangle the same size as src rect
+Gui 2: Show, NoActivate, Frame
+WinSet, TransColor, FFFFFF, Frame ; Makes the white rectangle inside frame transparent
+
+
 ; TODO
-; - Prevent src rect from moving offscreen (1st understand rect code)
-; - Implement ability to resize magnifier window and change zoom level
-; - Implement rectangle around mouse, showing area that will be magnified (the src rectangle)
-; - Implement border
+; - Understand why the + 1 is neccessary for width and height
+; - Check setting variables from the ini are sensible???
+
 ; - Implement magnifier reading by running magnify.exe then minimizing/hiding it???
-; - Can change color of border in Display Settings/Colours 
-; - Mouse rectangle intersection with mag window
+; - Can change color of border in Display Settings/Colours
 
 ; -------------------------------------------------------
 ;  Updating the source rectangle to the mouses location
@@ -103,58 +134,119 @@ Loop
 {
 	MouseGetPos, mouseX, mouseY
 
-	; if !vGuiW {
-	; 	msgbox % "Changed"
-	; 	WinGetPos,,, vGuiW, vGuiH, % "ahk_id " hostHandle
-	; }
+	; Keeping the src rectangle within the screen
+	srcTLx := clamp(mouseX - (srcWidth  / 2), 0, A_ScreenWidth  - srcWidth)
+	srcTLy := clamp(mouseY - (srcHeight / 2), 0, A_ScreenHeight - srcHeight)
 
-	; TODO Use if's here to clamp rectX and rectY
-	rectX := mouseX - (ctrlW / (2*zoom))
-	rectY := mouseY - (ctrlH / (2*zoom))
-	rectY += 10 / zoom ; Account for window title bar
+    ; Moving frame with the mouse
+    WinMove Frame,, % srcTLx - BorderThickness, % srcTLy - BorderThickness, % srcWidth + (2*BorderThickness) + 1, % srcHeight + (2*BorderThickness) + 1 ; bigger + value for height extends yellow border downwards
 
-	; vGuiX := mouseX-(vGuiW/2)
-	; vGuiY := mouseY-(vGuiH/2)
-
+	; Setting the soruce rectangle
 	VarSetCapacity(Rect, 16, 0) ; Rect contains 4 four-byte integers
-	NumPut(rectX, Rect, 0,  "Int") ; TLx
-	NumPut(rectY, Rect, 4,  "Int") ; TLy
-	NumPut(ctrlW, Rect, 8,  "Int") ; BRx
-	NumPut(ctrlH, Rect, 12, "Int") ; BRy
+	NumPut(srcTLx, Rect, 0, "Int")
+	NumPut(srcTLy, Rect, 4, "Int")
+	NumPut(hostWidth , Rect,  8, "Int") ; BRx but actually width (removing/changing these two does nothing so not sure what they are used for)
+	NumPut(hostHeight, Rect, 12, "Int") ; BRy but actually height
 	DllCall("magnification\MagSetWindowSource", "Ptr",ctrlHandle, "Ptr",&Rect) ; Specifies what part of the screen to magnify (source rectangle)
 
-	;keep GUI (ctrlHandle) within screen / certain coordinates
-	; if vDoWinWithinScreen
-	; {
-	; 	; TODO Handle offscreen the same as normal magnifier -> move this sort of code to the source rectangle area
+	; Preventing intersection handling if resizing allowed
+	if (resizingAllowed) {
+		Continue
+	}
 
-	; 	if (vGuiX < vOffset)
-	; 		vGuiX := vOffset
-	; 	if (vGuiX+vGuiW > A_ScreenWidth-vOffset)
-	; 		vGuiX := A_ScreenWidth-vOffset-vGuiW
-	; 	if (vGuiY < vOffset)
-	; 		vGuiY := vOffset
-	; 	if (vGuiY+vGuiH > A_ScreenHeight-vOffset)
-	; 		vGuiY := A_ScreenHeight-vOffset-vGuiH
-	; }
+	; Handling intersection between the frame (src rectnagle) and the ctrl window
+	if (hostInBr) {
+		srcBRx := srcTLx + srcWidth
+		srcBRy := srcTLy + srcHeight
 
-	; if (vGuiX2 = vGuiX) && (vGuiY2 = vGuiY)
-	; 	Sleep, 700
-	; else
-	; 	WinMove, % "ahk_id " hostHandle,, % vGuiX, % vGuiY ; Moving the magnifier window around with the mouse
-	; Sleep, 300
-
-	; vGuiX2 := vGuiX
-	; vGuiY2 := vGuiY
+		if (screenWidth - hostWidth - 10 < srcBRx and screenHeight - hostHeight - 10 < srcBRy) {
+			WinMove, % "ahk_id" hostHandle,, 0, 0
+			hostInBr := False
+		}
+	}
+	else if (hostWidth + 10 > srcTLx and hostHeight + 10 > srcTLy) {
+		WinMove, % "ahk_id" hostHandle,, screenWidth - hostWidth - 10, screenHeight - hostHeight - 10
+		hostInBr := True
+	}
 }
 return
 
+clamp(val, min, max) {
+	if (val < min) {
+		return min
+	}
+
+	if (val > max) {
+		return max
+	}
+
+	return val
+}
+
+; --- Change zoom ---
+!F7::
+!F8::
+    if (zoom <= 16 - zoomStep and (A_ThisHotKey = "!F7")) { ; 1600%
+        zoom += zoomStep
+    }        
+    
+    if (zoom >= 1 + zoomStep and (A_ThisHotKey = "!F8")) { ; 100%
+        zoom -= zoomStep
+    }
+
+	; Displaying the new zoom value to the user
+	ToolTip, % Floor(zoom*100) "%", A_ScreenWidth/2, A_ScreenHeight/2
+	SetTimer, removeToolTip, -1000
+
+	srcWidth  := hostWidth  / zoom
+	srcHeight := hostHeight / zoom
+
+	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth + 1 "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
+
+	NumPut(zoom, MAGTRANSFORM, (1-1)*4, "Float")
+	NumPut(zoom, MAGTRANSFORM, (5-1)*4, "Float")
+
+	DllCall("magnification\MagSetWindowTransform", "Ptr",ctrlHandle, "Ptr",&MAGTRANSFORM) ; Sets transformation matrix
+Return
+
+RemoveToolTip:
+	ToolTip
+return
+
+; Called when the user resizes the host window
+GuiSize:
+    hostWidth  := A_GuiWidth
+    hostHeight := A_GuiHeight
+
+    srcWidth  := hostWidth  / zoom
+    srcHeight := hostHeight / zoom
+
+	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth + 1 "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
+
+	WinMove, % "ahk_id" ctrlHandle, , 0, 0, hostWidth, hostHeight ; Resizes ctrl window so that it fills the inside of host window ( filling it with the magnified src rect)
+Return
+
+; Toggles the ability to resize the host window
+#f::
+    resizingAllowed := !resizingAllowed
+
+    if (resizingAllowed) {
+        Gui +Resize ; Allows window to be resized
+        return
+    }
+
+    Gui -Resize ; So the white bar from resizing isn't visible
+Return
+
 #n::
 Uninitialize:
-Gui, Destroy
-DllCall("magnification\MagUninitialize") ; Destroy the magnifier run-time objects, freeing the associated system resources
+	Gui, Destroy
+	DllCall("magnification\MagUninitialize") ; Destroy the magnifier run-time objects, freeing the associated system resources
+
+	IniWrite, % zoom, drMagSettings.ini, MagFactor, Zoom
+	IniWrite, % hostWidth , drMagSettings.ini, HostSize,  Width
+	IniWrite, % hostHeight, drMagSettings.ini, HostSize, Height
 ExitApp
-#IfWinActive
 
 ;-------------------------------------------------------------------------------
 ; Reload on Save

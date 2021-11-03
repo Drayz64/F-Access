@@ -105,7 +105,7 @@ Repaint:
 
 
     ; Moving frame with the mouse
-    GuiControl, Move, frameBorder, % "w" frameWidth - (2*BorderThickness) "h" frameHeight - (2*BorderThickness)
+    GuiControl, Move, frameBorder, % "w" frameWidth - (2*BorderThickness) "h" frameHeight - (2*BorderThickness) ; When users zooms this changes the border to fit the new size
     WinMove Frame,, % frameX, % frameY, % frameWidth, % frameHeight ; Moving the frame with the mouse
 
 
