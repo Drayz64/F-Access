@@ -11,7 +11,7 @@ screenWidth  := workAreaRight
 screenHeight := workAreaBottom
 
 ; Retrieving saved settings
-IniRead, zoom, drMagSettings.ini, MagFactor, Zoom, 2
+IniRead, zoom, drMagSettings.ini, MagFactor, Zoom, 4
 IniRead, hostWidth , drMagSettings.ini, HostSize,  Width, % screenWidth  / 2.5
 IniRead, hostHeight, drMagSettings.ini, HostSize, Height, % screenHeight / 5
 
@@ -110,7 +110,7 @@ Gui 2: +AlwaysOnTop +ToolWindow -Caption -DPIScale +E0x20 ; WS_EX_TRANSPARENT (0
 Gui 2: Margin, % BorderThickness, % BorderThickness
 Gui 2: Color, % BorderColor
 
-width  := srcWidth
+width  := srcWidth  + 1
 height := srcHeight + 1 ; Adding to srcHeight extends the transparent section downards
 
 Gui 2: Add, Text, vframe_InternalRect w%width% h%height% 0x6 ; SS_WHITERECT (0x6), Creates a white rectangle the same size as src rect
@@ -119,7 +119,7 @@ WinSet, TransColor, FFFFFF, Frame ; Makes the white rectangle inside frame trans
 
 
 ; TODO
-; - Understand why the + 1 is neccessary -> Not a total solution, yellow still visible with some levels of zoom e.g. 400% 
+; - Understand why the + 1 is neccessary for width and height
 ; - Check setting variables from the ini are sensible???
 
 ; - Implement magnifier reading by running magnify.exe then minimizing/hiding it???
@@ -139,7 +139,7 @@ Loop
 	srcTLy := clamp(mouseY - (srcHeight / 2), 0, A_ScreenHeight - srcHeight)
 
     ; Moving frame with the mouse
-    WinMove Frame,, % srcTLx - BorderThickness, % srcTLy - BorderThickness, % srcWidth + (2*BorderThickness), % srcHeight + (2*BorderThickness) + 1 ; bigger + value for height extends yellow border downwards
+    WinMove Frame,, % srcTLx - BorderThickness, % srcTLy - BorderThickness, % srcWidth + (2*BorderThickness) + 1, % srcHeight + (2*BorderThickness) + 1 ; bigger + value for height extends yellow border downwards
 
 	; Setting the soruce rectangle
 	VarSetCapacity(Rect, 16, 0) ; Rect contains 4 four-byte integers
@@ -201,7 +201,7 @@ clamp(val, min, max) {
 	srcWidth  := hostWidth  / zoom
 	srcHeight := hostHeight / zoom
 
-	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
+	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth + 1 "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
 
 	NumPut(zoom, MAGTRANSFORM, (1-1)*4, "Float")
 	NumPut(zoom, MAGTRANSFORM, (5-1)*4, "Float")
@@ -221,7 +221,7 @@ GuiSize:
     srcWidth  := hostWidth  / zoom
     srcHeight := hostHeight / zoom
 
-	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
+	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth + 1 "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
 
 	WinMove, % "ahk_id" ctrlHandle, , 0, 0, hostWidth, hostHeight ; Resizes ctrl window so that it fills the inside of host window ( filling it with the magnified src rect)
 Return
