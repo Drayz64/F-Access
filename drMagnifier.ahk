@@ -1,5 +1,6 @@
 #NoEnv
 #SingleInstance, force
+#NoTrayIcon
 SetBatchLines -1 ; Script runs at max speed
 SetWinDelay, 0   ; Default delay of 100ms for win__ commands
 
@@ -248,7 +249,6 @@ Return
     Gui -Resize ; So the white bar from resizing isn't visible
 Return
 
-#n::
 Uninitialize:
 	Gui, Destroy
 	DllCall("magnification\MagUninitialize") ; Destroy the magnifier run-time objects, freeing the associated system resources
