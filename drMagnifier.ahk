@@ -1,299 +1,259 @@
-﻿#NoEnv
+#NoEnv
 #SingleInstance, force
 SetBatchLines -1 ; Script runs at max speed
 SetWinDelay, 0   ; Default delay of 100ms for win__ commands
-#NoTrayIcon
 
-;-------------------------------------------------------------------------------
-; Auto Execute - Until return, exit, hotkey/string encountered
-;-------------------------------------------------------------------------------
+OnExit, Uninitialize
 
-CoordMode Mouse, Screen
-
-; --- Prevents magnifier from obscurring taskbar ---
+; A_ScreenHeight includes the taskbar so using different variable that doesn't have the taskbar
 SysGet, workArea, MonitorWorkArea
-global screenWidth  := workAreaRight
-global screenHeight := workAreaBottom
+screenWidth  := workAreaRight
+screenHeight := workAreaBottom
 
-; --- Retrieving saved settings ---
-Settings := []
-Loop, Read, drMagnifierSettings.txt 
-{
-    Settings.Insert(A_LoopReadLine)
-}
+; Retrieving saved settings
+IniRead, zoom, drMagSettings.ini, MagFactor, Zoom, 4
+IniRead, hostWidth , drMagSettings.ini, HostSize,  Width, % screenWidth  / 2.5
+IniRead, hostHeight, drMagSettings.ini, HostSize, Height, % screenHeight / 5
 
-global zoom      := Settings[1]
-global guiWidth  := Settings[2]
-global guiHeight := Settings[3]
-global antialize := Settings[4]
+srcWidth  := hostWidth  / zoom
+srcHeight := hostHeight / zoom
 
-checkVariables()
+hostInBr := True
+resizingAllowed := False
 
-FileDelete, drMagnifierSettings.txt
-OnExit("saveSettings")
+zoomStep := 0.5 ; 50%
 
-; --- Setting variables ---
-frameWidth  := guiWidth  / zoom
-frameHeight := guiHeight / zoom
+; ---------------------------
+;  Creating the host window
+; ---------------------------
 
-global counter := 20
-global atTopLeft := False
-resizingAllowed  := False
+; Using WS_EX_TRANSPARENT (0x20), allowing for click through, would be useful for a full screen or lens magnifier
 
-; ; --- Magnified image in bottom left or top right ---
-; Gui 2:+AlwaysOnTop -Caption +ToolWindow +Border -DPIScale
-; Gui 2:Show, % "NoActivate" "w" guiWidth "h" guiHeight "x" screenWidth - guiWidth - 2 "y" screenHeight - guiHeight - 2, Magnifier
-; WinGet MagnifierID, id, Magnifier
-; WinSet Transparent, 255, Magnifier ; makes the window invisible to magnification
-; WinGet PrintSourceID, ID
+; WS_EX_LAYERED (80000), WS_EX_CLIENTEDGE (0x200), WS_EX_DLGMODALFRAME (0x1)
+Gui +AlwaysOnTop +ToolWindow -Caption -DPIScale +E0x80201 +HwndhostHandle
 
-; --- Magnified image in bottom left or top right with frame ---
-BorderThickness := 3, BorderColor:="eb4034"
+; Setting host's initial position to the BR
+hostX := screenWidth  - hostWidth  - 10
+hostY := screenHeight - hostHeight - 10
 
-Gui 2:+AlwaysOnTop -Caption +ToolWindow -DPIScale
-Gui 2:Margin, % BorderThickness, % BorderThickness
-Gui 2:Color, % BorderColor
+Gui Show, % "w" hostWidth "h" hostHeight "x" hostX "y" hostY "NoActivate", MagnifierWindowAHK
 
-width := guiWidth - (BorderThickness*2)
-height := guiHeight - (BorderThickness*2)
+WinSet, Transparent, 255, % "ahk_id " hostHandle ; Setting host window to be fully opaque => Using WinSet instead of SetLayeredWindowAttributes()
 
-Gui 2:Add, Text, vMagBorder w%width% h%height% 0x6, ; Draw a white static control
-; Gui 2:Show, % "NoActivate" "x" screenWidth - guiWidth "y" screenHeight - guiHeight, Magnifier
-Gui 2:Show, % "NoActivate" "w" guiWidth "h" guiHeight "x" screenWidth - guiWidth "y" screenHeight - guiHeight, Magnifier
-WinGet MagnifierID, id, Magnifier
-WinGet PrintSourceID, ID
-WinSet Transparent, 255, Magnifier ; makes the window invisible to magnification
-; WinSet, TransColor, FFFFFF, Magnifier ; This makes white areas in the magnified area see through
+hInstance := DllCall("GetWindowLongPtr", "Ptr",hostHandle, "Int",-6, "Ptr") ; -6 = GWLP_HINSTANCE (Retrieves a handle to the application instance)
+
+; ---------------------------------
+;  Initialising magnifier library
+; ---------------------------------
+
+; Explicitly loading magnification.dll, otherwise it would be automatically unloaded after MagIntialize, meaning the window class(?) would be unregistered
+DllCall("LoadLibrary", "Str","magnification.dll", "Ptr")
+
+; Creates and initialises the magnifier run-time objects
+DllCall("magnification\MagInitialize")
 
 
-; --- CrossHair in Magnified Window ---
-; Gui 3:-Caption +ToolWindow +AlwaysOnTop +E0x20
-Gui 3:-Caption +ToolWindow
-Gui 3:margin, 0, 0
-GUI 3:Color, ffffff
-Gui 3:Add, Picture, AltSubmit BackgroundTrans, Yellow3CrossHair.png
-picMid := 13
-Gui 3:Show, % "NoActivate", crossHair
-WinSet, TransColor, ffffff, crossHair
+; ----------------------------------------
+;  Creating the magnifier control window
+; ----------------------------------------
 
-; --- Frame around the mouse ---
-BorderThickness := 3, BorderColor:="d9a518"
+WS_CHILD   := 0x40000000
+WS_VISIBLE := 0x10000000
+MS_SHOWMAGNIFIEDCURSOR := 0x1
+winStyle := WS_CHILD | MS_SHOWMAGNIFIEDCURSOR | WS_VISIBLE
+windowClassName := "Magnifier" ; = WC_Magnifier
+windowName := "MagnifierWindow"
+initTLx := 0 ; Ctrl window is a child window of host window, therefore x = TLx of ctrl window, relative to the TLx of host window
+initTLy := 0
+parentHwnd := hostHandle
+;hInstance -> A handle to the instance of the module to be associated with the magnifier control window
 
-Gui +AlwaysOnTop -Caption +ToolWindow -DPIScale +E0x20 ; +0x800000 ; same as +border
-Gui, Margin, % BorderThickness, % BorderThickness
-Gui, Color, % BorderColor
+ctrlHandle := DllCall("CreateWindowEx", "UInt",0, "Str",windowClassName, "Str",windowName, "UInt",winStyle, "Int",initTLx, "Int",initTLy, "Int",hostWidth, "Int",hostHeight, "Ptr",parentHwnd, "Ptr",0, "Ptr",hInstance, "Ptr",0, "Ptr")
+; Changing the value of hInstance has no effect
 
-width  := frameWidth  - (BorderThickness*2)
-height := frameHeight - (BorderThickness*2)
+; ----------------------------------------------
+;  Setting Magnification Factor for ctrlHandle
+; ----------------------------------------------
 
-Gui, Add, Text, vframeBorder w%width% h%height% 0x6, ; Draw a white static control
-Gui Show, % "NoActivate", Frame
-WinSet, TransColor, FFFFFF, Frame ; Use lastfound so this line can be done before showing?
+;The transformation matrix is
+; (n, 0.0, 0.0)
+; (0.0, n, 0.0)
+; (0.0, 0.0, 1.0)
+;where n is the magnification factor.
+
+VarSetCapacity(matrix, 36, 0) ; Allows matrix to store 36 bytes and fills those bytes with 0
+
+; A Float is stored using 4 bytes therefore middle is the 16-19th byte (5th float) and the br is 28-31st byte (9th float) 
+NumPut(zoom, matrix, (1-1)*4, "Float")
+NumPut(zoom, matrix, (5-1)*4, "Float")
+NumPut(   1, matrix, (9-1)*4, "Float")
+
+DllCall("magnification\MagSetWindowTransform", "Ptr",ctrlHandle, "Ptr",&matrix) ; Sets transformation matrix
 
 
-hdcSrc  := DllCall("GetDC", UInt, PrintSourceID)
-hdcDest := DllCall("GetDC", UInt, MagnifierID)
-DllCall("gdi32.dll\SetStretchBltMode", "uint", hdcDest, "int", 4*antialize)
-; https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-setstretchbltmode
+; ------------
+;  Smoothing
+; ------------
 
-Repaint:
-    MouseGetPos x, y
+DllCall("magnification\MagSetLensUseBitmapSmoothing", "Ptr",ctrlHandle, "Int",1) ; Undocumented smoothing function
 
-    ; Prevents the frame from going off screen
-    frameX := In(x - (frameWidth /2), 2, A_ScreenWidth  - frameWidth ) 
-    frameY := In(y - (frameHeight/2), 2, A_ScreenHeight - frameHeight) ; TODO Not sure why -1 is neccessary
 
+; ------------------------------------------------
+;  Creating src rectangle frame around the mouse
+; ------------------------------------------------
+
+BorderThickness := 4, BorderColor:="d9a518"
+
+Gui 2: +AlwaysOnTop +ToolWindow -Caption -DPIScale +E0x20 ; WS_EX_TRANSPARENT (0x20) Allows for click through
+Gui 2: Margin, % BorderThickness, % BorderThickness
+Gui 2: Color, % BorderColor
+
+width  := srcWidth  + 1
+height := srcHeight + 1 ; Adding to srcHeight extends the transparent section downards
+
+Gui 2: Add, Text, vframe_InternalRect w%width% h%height% 0x6 ; SS_WHITERECT (0x6), Creates a white rectangle the same size as src rect
+Gui 2: Show, NoActivate, Frame
+WinSet, TransColor, FFFFFF, Frame ; Makes the white rectangle inside frame transparent
+
+
+; TODO
+; - Understand why the + 1 is neccessary for width and height
+; - Check setting variables from the ini are sensible???
+
+; - Implement magnifier reading by running magnify.exe then minimizing/hiding it???
+; - Can change color of border in Display Settings/Colours
+
+; -------------------------------------------------------
+;  Updating the source rectangle to the mouses location
+; -------------------------------------------------------
+
+;Improving performance by loading the functions address before the loop
+; magSetWinSrcAddress := DllCall("GetProcAddress", "Ptr", DllCall("GetModuleHandle", "Str", "magnification", "Ptr"), "AStr", "MagSetWindowSource", "Ptr")
+
+CoordMode, Mouse, Screen
+magnify:
+	MouseGetPos, mouseX, mouseY
+
+	; Keeping the src rectangle within the screen
+	srcTLx := clamp(mouseX - (srcWidth  / 2), 0, A_ScreenWidth  - srcWidth)
+	srcTLy := clamp(mouseY - (srcHeight / 2), 0, A_ScreenHeight - srcHeight)
 
     ; Moving frame with the mouse
-    GuiControl, Move, frameBorder, % "w" frameWidth - (2*BorderThickness) "h" frameHeight - (2*BorderThickness) ; When users zooms this changes the border to fit the new size
-    WinMove Frame,, % frameX, % frameY, % frameWidth, % frameHeight ; Moving the frame with the mouse
+    WinMove Frame,, % srcTLx - BorderThickness, % srcTLy - BorderThickness, % srcWidth + (2*BorderThickness) + 1, % srcHeight + (2*BorderThickness) + 1 ; bigger + value for height extends yellow border downwards
 
+	; Setting the soruce rectangle
+	VarSetCapacity(Rect, 16, 0) ; Rect contains 4 four-byte integers
+	NumPut(srcTLx, Rect, 0, "Int")
+	NumPut(srcTLy, Rect, 4, "Int")
+	NumPut(hostWidth , Rect,  8, "Int") ; BRx but actually width (removing/changing these two does nothing so not sure what they are used for)
+	NumPut(hostHeight, Rect, 12, "Int") ; BRy but actually height
+	; DllCall(magSetWinSrcAddress, "Ptr",ctrlHandle, "Ptr",&Rect) ; Specifies what part of the screen to magnify (source rectangle)
+	DllCall("magnification\MagSetWindowSource", "Ptr",ctrlHandle, "Ptr",&Rect) ; Specifies what part of the screen to magnify (source rectangle)
 
-    ; Moving the crosshair inside the magnified window
-    if (atTopLeft) {
-        WinMove crossHair,, % (x - frameX) * zoom - picMid, % (y - frameY) * zoom - picMid ; TODO isn't frameX just 0 here?
-    }
-    else {
-        magnifierX := screenWidth - guiWidth ; TODO turn magnifierX into a global variable?
-        magnifierY := screenHeight - guiHeight
-        WinMove crossHair,, % magnifierX + ( (x - frameX) * zoom ) - picMid, % magnifierY + ( (y - frameY) * zoom) - picMid
-    }
+	; Preventing intersection handling if resizing allowed
+	if (resizingAllowed) {
+		; Continue
+		Return
+	}
 
+	; Handling intersection between the frame (src rectangle) and the host window
+	Gosub, checkForIntersect
 
-    ; TODO Resizing magnifier to be smaller than starting size changes margins left and right to white
+	SetTimer, magnify, 10
+return
 
-    ; GuiControl, Move, mBorder, % "w" guiWidth - (2*BorderThickness) "h" guiHeight - (2*BorderThickness)
+clamp(val, min, max) {
+	if (val < min) {
+		return min
+	}
 
+	if (val > max) {
+		return max
+	}
 
-    destTLx := BorderThickness ; So destRect does not include the border
-    destTLy := BorderThickness    
-    destWidth  := guiWidth  - 2 * BorderThickness
-    destHeight := guiHeight - 2 * BorderThickness
-
-    srcTLx := frameX + BorderThickness
-    srcTLy := frameY + BorderThickness
-    srcWidth  := frameWidth  - 2 * BorderThickness
-    srcHeight := frameHeight - 2 * BorderThickness
-
-    rop := 0xCC0020 ; => SRCCOPY => raster operation (list here https://docs.microsoft.com/en-us/windows/win32/gdi/ternary-raster-operations)
-
-    DllCall("gdi32.dll\StretchBlt"
-    , UInt, hdcDest, Int, destTLx, Int, destTLy, Int, destWidth, Int, destHeight
-    , UInt, hdcSrc,  Int, srcTLx,  Int, srcTLy,  Int, srcWidth,  Int, srcHeight
-    , UInt, rop)
-    ; https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-stretchblt
-
-    ; DllCall("gdi32.dll\StretchBlt", UInt,hdcDest, Int,0, Int,0, Int, guiWidth + BorderThickness, Int, guiHeight + BorderThickness
-    ; , UInt, hdcSrc, UInt, frameX + BorderThickness, UInt, frameY + BorderThickness, Int, frameWidth - 2*BorderThickness, Int, frameHeight - 2*BorderThickness, UInt,0xCC0020) ; SRCCOPY
-
-
-    ; TODO Causing highlight click problems
-
-    Gui 3:+AlwaysOnTop ; Keeps the crosshair ontop of the magnifier
-    Gui +AlwaysOnTop ; So if there is another ontop gui the mouse frame is always on top
-
-    ; TODO using numbers for frame gui broke the magnifier
-
-
-    ; Moving the magnifier if the mouse frame is inside it
-    if (counter >= 8 and !resizingAllowed) {
-        checkForIntersect(frameX, frameY, frameWidth, frameHeight)
-    }
-    counter++
-
-    SetTimer Repaint, 10
-Return
-
-;-------------------------------------------------------------------------------
-; Auto Execute End
-;-------------------------------------------------------------------------------
-
-checkVariables() {
-    if (zoom < 1 or zoom > 32) {
-        zoom := 4
-    }
-
-    if (guiWidth  > screenWidth  or guiWidth  <= 0) {
-        guiWidth  := screenWidth  / 3
-    }
-
-    if (guiHeight > screenHeight or guiHeight <= 0) {
-        guiHeight := screenHeight / 3
-    }
-
-    if (antialize != 1 and antialize != 0) {
-        antialize := False
-    }
+	return val
 }
-Return
 
-checkForIntersect(frameX, frameY, frameWidth, frameHeight) {
-    counter := 0
+checkForIntersect:
+	if (hostInBr) {
+		srcBRx := srcTLx + srcWidth
+		srcBRy := srcTLy + srcHeight
 
-    if (atTopLeft) {
-        if (guiWidth > frameX and guiHeight > frameY) {
-            x := screenWidth - guiWidth
-            y := screenHeight - guiHeight
-            WinMove, Magnifier, , x, y
+		if (screenWidth - hostWidth - 10 < srcBRx and screenHeight - hostHeight - 10 < srcBRy) {
+			WinMove, % "ahk_id" hostHandle,, 0, 0
+			hostInBr := False
+		}
 
-            atTopLeft := False
-        }
-        Return
-    }
-
-    frameRx := frameX + frameWidth
-    frameBy := frameY + frameHeight
-    
-    if (screenWidth - guiWidth < frameRx and screenHeight - guiHeight < frameBy) {
-        WinMove, Magnifier, , 0, 0
-        atTopLeft := True
-    }    
-}
-Return
-
-2GuiSize:
-    guiWidth  := A_GuiWidth
-    guiHeight := A_GuiHeight
-
-    frameWidth  := guiWidth  / zoom
-    frameHeight := guiHeight / zoom
-Return
-
-In(x,a,b) { ; closest number to x in [a,b]
-    ; x = TLx of the frame (and TLy)
-    ; a = 0
-    ; b = A_screenwidth - frameWidth (and height)
-
-    IfLess x,%a%, Return a ; (if x < a)
-    IfLess b,%x%, Return b ; (if b < x)
-
-    Return x ; (x > a and x > b)
-}
+		return
+	}
+	
+	if (hostWidth + 10 > srcTLx and hostHeight + 10 > srcTLy) {
+		WinMove, % "ahk_id" hostHandle,, screenWidth - hostWidth - 10, screenHeight - hostHeight - 10
+		hostInBr := True
+	}
+return
 
 ; --- Change zoom ---
 !F7::
 !F8::
-    if (zoom < 31 and ( A_ThisHotKey = "!F7")) {
-        zoom *= 1.189207115 ; sqrt(sqrt(2))
+    if (zoom <= 16 - zoomStep and (A_ThisHotKey = "!F7")) { ; 1600%
+        zoom += zoomStep
     }        
     
-    if (zoom > 1 and ( A_ThisHotKey = "!F8")) {
-        zoom /= 1.189207115
-    }        
+    if (zoom >= 1 + zoomStep and (A_ThisHotKey = "!F8")) { ; 100%
+        zoom -= zoomStep
+    }
 
-    frameWidth  := guiWidth  / zoom
-    frameHeight := guiHeight / zoom
+	; Displaying the new zoom value to the user
+	ToolTip, % Floor(zoom*100) "%", A_ScreenWidth/2, A_ScreenHeight/2
+	SetTimer, removeToolTip, -1000
+
+	srcWidth  := hostWidth  / zoom
+	srcHeight := hostHeight / zoom
+
+	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth + 1 "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
+
+	NumPut(zoom, matrix, (1-1)*4, "Float")
+	NumPut(zoom, matrix, (5-1)*4, "Float")
+
+	DllCall("magnification\MagSetWindowTransform", "Ptr",ctrlHandle, "Ptr",&matrix) ; Sets transformation matrix
 Return
 
-; --- Resize ---
+RemoveToolTip:
+	ToolTip
+return
+
+; Called when the user resizes the host window
+GuiSize:
+    hostWidth  := A_GuiWidth
+    hostHeight := A_GuiHeight
+
+    srcWidth  := hostWidth  / zoom
+    srcHeight := hostHeight / zoom
+
+	GuiControl, 2:Move, frame_InternalRect, % "w" srcWidth + 1 "h" srcHeight + 1 ; Resizes frame_InternalRect to be the same size as src rect
+
+	WinMove, % "ahk_id" ctrlHandle, , 0, 0, hostWidth, hostHeight ; Resizes ctrl window so that it fills the inside of host window ( filling it with the magnified src rect)
+Return
+
+; Toggles the ability to resize the host window
 #f::
     resizingAllowed := !resizingAllowed
 
     if (resizingAllowed) {
-        Gui 2:+Resize ; Allows window to be resized
+        Gui +Resize ; Allows window to be resized
         return
     }
 
-    Gui 2:-Resize ; So the white bar from resizing isn't visible
-Return
-
-; --- Antialize ---
-#a::
-    antialize := !antialize
-    DllCall("gdi32.dll\SetStretchBltMode", "uint", hdcDest, "int", 4*antialize) ; Antializing ?
-Return 
-
-saveSettings() {
-    file := FileOpen("drMagnifierSettings.txt", "w")
-    
-    file.WriteLine(zoom)
-    file.WriteLine(guiWidth)
-    file.WriteLine(guiHeight)
-    file.WriteLine(antialize)
-    file.Close()
-
-    DllCall("gdi32.dll\DeleteDC", UInt, hdcDest )
-    DllCall("gdi32.dll\DeleteDC", UInt, hdcSrc )
-}
+    Gui -Resize ; So the white bar from resizing isn't visible
 Return
 
 #n::
-    saveSettings()
-    ExitApp
-Return
+Uninitialize:
+	Gui, Destroy
+	DllCall("magnification\MagUninitialize") ; Destroy the magnifier run-time objects, freeing the associated system resources
 
-;-------------------------------------------------------------------------------
-; Reload on Save
-;-------------------------------------------------------------------------------
-~^s::
-    Sleep 200
-    WinGetActiveTitle, activeTitle
-    activeTitle := StrReplace(activeTitle, " - Visual Studio Code")
-
-    if (activeTitle = A_ScriptName) {
-        ToolTip, %A_ScriptName%, 1770, 959
-        sleep 800
-        ToolTip
-        Reload
-    }
-return
+	IniWrite, % zoom, drMagSettings.ini, MagFactor, Zoom
+	IniWrite, % hostWidth , drMagSettings.ini, HostSize,  Width
+	IniWrite, % hostHeight, drMagSettings.ini, HostSize, Height
+ExitApp
