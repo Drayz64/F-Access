@@ -117,19 +117,12 @@ Gui 2: Show, NoActivate, Frame
 WinSet, TransColor, FFFFFF, Frame ; Makes the white rectangle inside frame transparent
 
 
-; TODO
-; - Understand why the + 1 is neccessary for width and height
-; - Check setting variables from the ini are sensible???
-
-; - Implement magnifier reading by running magnify.exe then minimizing/hiding it???
-; - Can change color of border in Display Settings/Colours
-
 ; -------------------------------------------------------
 ;  Updating the source rectangle to the mouses location
 ; -------------------------------------------------------
 
 ;Improving performance by loading the functions address before the loop
-; magSetWinSrcAddress := DllCall("GetProcAddress", "Ptr", DllCall("GetModuleHandle", "Str", "magnification", "Ptr"), "AStr", "MagSetWindowSource", "Ptr")
+setSrcRect := DllCall("GetProcAddress", "Ptr", DllCall("GetModuleHandle", "Str", "magnification", "Ptr"), "AStr", "MagSetWindowSource", "Ptr")
 
 CoordMode, Mouse, Screen
 magnify:
@@ -148,12 +141,10 @@ magnify:
 	NumPut(srcTLy, Rect, 4, "Int")
 	NumPut(hostWidth , Rect,  8, "Int") ; BRx but actually width (removing/changing these two does nothing so not sure what they are used for)
 	NumPut(hostHeight, Rect, 12, "Int") ; BRy but actually height
-	; DllCall(magSetWinSrcAddress, "Ptr",ctrlHandle, "Ptr",&Rect) ; Specifies what part of the screen to magnify (source rectangle)
-	DllCall("magnification\MagSetWindowSource", "Ptr",ctrlHandle, "Ptr",&Rect) ; Specifies what part of the screen to magnify (source rectangle)
+	DllCall(setSrcRect, "Ptr",ctrlHandle, "Ptr",&Rect) ; Specifies what part of the screen to magnify (source rectangle)
 
 	; Preventing intersection handling if resizing allowed
 	if (resizingAllowed) {
-		; Continue
 		Return
 	}
 
