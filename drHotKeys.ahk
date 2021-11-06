@@ -68,9 +68,50 @@ F6::
             sleep 1000
             Gui, Destroy
         }
+<<<<<<< HEAD
     }
 Return
 
+=======
+
+        if !ErrorLevel {
+            Gui, Font, s40
+            Gui, Color, EEAA99 ; Pink/Orange background
+            Gui, Add, Text,, Save file as:
+            Gui, Add, Button, w1 h1 hidden default, Ok ; hidden button
+            Gui, Font, s35
+            Gui, Add, Edit, vInput
+            Gui, -Caption +AlwaysOnTop +ToolWindow +Border
+            Gui, Show, % "w" screenWidth "h" screenHeight, saveFileAs
+        }
+        else {
+            Gui, Font, s40
+            Gui, Color, EEAA99 ; Pink/Orange background
+            Gui, Add, Text,, Saved!
+            Gui, -Caption +AlwaysOnTop +ToolWindow +Border
+            Gui, Show, , saved
+            sleep 1000
+            Gui, Destroy
+        }
+    }
+Return
+
+ButtonOk:
+    Gui, Submit
+    Gui, Destroy
+
+    clipContent := Clipboard
+
+    ; Test if file name already exists?
+    Clipboard := Input
+    Send ^v
+    sleep 50
+    Send {Enter}
+
+    Clipboard := clipContent
+Return
+
+>>>>>>> Removed comments for the save as gui code
 ; Toggle Magnifier
 F7::
     if WinExist(drMagnifier "ahk_class AutoHotkey") {
