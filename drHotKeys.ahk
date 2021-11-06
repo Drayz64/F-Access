@@ -68,42 +68,42 @@ F6::
             Gui, Destroy
         }
 
-        ; if !ErrorLevel {
-        ;     Gui, Font, s40
-        ;     Gui, Color, EEAA99 ; Pink/Orange background
-        ;     Gui, Add, Text,, Save file as:
-        ;     Gui, Add, Button, w1 h1 hidden default, Ok ; hidden button
-        ;     Gui, Font, s35
-        ;     Gui, Add, Edit, vInput
-        ;     Gui, -Caption +AlwaysOnTop +ToolWindow +Border
-        ;     Gui, Show, % "w" screenWidth "h" screenHeight, saveFileAs
-        ; }
-        ; else {
-        ;     Gui, Font, s40
-        ;     Gui, Color, EEAA99 ; Pink/Orange background
-        ;     Gui, Add, Text,, Saved!
-        ;     Gui, -Caption +AlwaysOnTop +ToolWindow +Border
-        ;     Gui, Show, , saved
-        ;     sleep 1000
-        ;     Gui, Destroy
-        ; }
+        if !ErrorLevel {
+            Gui, Font, s40
+            Gui, Color, EEAA99 ; Pink/Orange background
+            Gui, Add, Text,, Save file as:
+            Gui, Add, Button, w1 h1 hidden default, Ok ; hidden button
+            Gui, Font, s35
+            Gui, Add, Edit, vInput
+            Gui, -Caption +AlwaysOnTop +ToolWindow +Border
+            Gui, Show, % "w" screenWidth "h" screenHeight, saveFileAs
+        }
+        else {
+            Gui, Font, s40
+            Gui, Color, EEAA99 ; Pink/Orange background
+            Gui, Add, Text,, Saved!
+            Gui, -Caption +AlwaysOnTop +ToolWindow +Border
+            Gui, Show, , saved
+            sleep 1000
+            Gui, Destroy
+        }
     }
 Return
 
-; ButtonOk:
-;     Gui, Submit
-;     Gui, Destroy
+ButtonOk:
+    Gui, Submit
+    Gui, Destroy
 
-;     clipContent := Clipboard
+    clipContent := Clipboard
 
-;     ; Test if file name already exists?
-;     Clipboard := Input
-;     Send ^v
-;     sleep 50
-;     Send {Enter}
+    ; Test if file name already exists?
+    Clipboard := Input
+    Send ^v
+    sleep 50
+    Send {Enter}
 
-;     Clipboard := clipContent
-; Return
+    Clipboard := clipContent
+Return
 
 ; Toggle Magnifier
 F7::
