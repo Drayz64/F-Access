@@ -17,7 +17,7 @@ screenHeight := workAreaBottom
 
 OnExit("closeScripts")
 
-global voice := ComObjCreate("SAPI.SpVoice")
+voice := ComObjCreate("SAPI.SpVoice")
 
 ; Alternative fix is to loop through files in working dir and populate scriptNames with files starting in "dr"
 global scriptNames := ["drMagnifier", "drWordPad", "drInput"]
@@ -58,6 +58,7 @@ F6::
         sleep 50
         WinWait, Save As ahk_exe wordpad.exe,,0
 
+        ; Pop Up confirmation message
         if ErrorLevel {
             Gui, Font, s40
             Gui, Color, EEAA99 ; Pink/Orange background
@@ -128,12 +129,12 @@ Return
 
 startScripts() {
     for index, name in scriptNames {
-        Run, % name 
+        Run, %name% "ahk_class AutoHotkey"
     }
 }
 
 closeScripts() {
     for index, name in scriptNames {
-        WinClose, % name
+        WinClose, % name "ahk_class AutoHotkey"
     }
 }
