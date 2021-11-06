@@ -81,7 +81,7 @@ F4::
         }
 
         Loop % lines.MaxIndex() - ignoreLines {
-            voice.Speak(lines[A_Index + ignoreLines])
+            voice.Speak(lines[A_Index + ignoreLines], 1)
         }            
     }
 Return
