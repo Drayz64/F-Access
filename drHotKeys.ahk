@@ -107,7 +107,7 @@ Return
 
 ; Toggle Magnifier
 F7::
-    if (WinExist(drMagnifier "ahk_class AutoHotkey")) {
+    if WinExist(drMagnifier "ahk_class AutoHotkey") {
         WinClose
         voice.speak("Magnifier Closed", 1)
     }
@@ -139,7 +139,7 @@ Return
 
 ; Toggle input speaker
 F8::
-    if (WinExist(drInput "ahk_class AutoHotKey")) {
+    if WinExist(drInput "ahk_class AutoHotkey") {
         WinKill
         voice.speak("Input speaker closed", 1)
     }
@@ -147,11 +147,12 @@ F8::
         Run, %drInput% "ahk_class AutoHotkey"
         voice.speak("Input speaker running", 1)
     }
+Return
 
 ; Restart all scripts
 F12::
-    ; These 2 scripts that use sapi speak()
-    ; as they won't be restarted using run if speak() is speaking
+    ; Close the 2 scripts that use sapi speak() before restarting
+    ; as restarting won't work if speak() is speaking
     WinClose, % drWordPad "ahk_class AutoHotkey"
     WinClose, % drInput   "ahk_class AutoHotkey"
 
