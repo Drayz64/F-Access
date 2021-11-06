@@ -17,10 +17,6 @@ screenHeight := workAreaBottom
 
 OnExit("closeScripts")
 
-global inputFile := "input.txt"
-global speechFinishedFile := "speechFinished.txt"
-deleteFiles()
-
 global voice := ComObjCreate("SAPI.SpVoice")
 
 ; Alternative fix is to loop through files in working dir and populate scriptNames with files starting in "dr"
@@ -32,6 +28,8 @@ for index, fileName in scriptNames {
     scriptNames[index] := fileName "." extension
 }
 drMagnifier := % scriptNames[1]
+drWordPad   := % scriptNames[2]
+drInput     := % scriptNames[3]
 
 startScripts()
 voice.Speak("Successfully started", 1)
@@ -41,7 +39,7 @@ voice.Speak("Successfully started", 1)
 Return
 ;-------------------------------------------------------------------------------
 
-; (F1 = Open new doc)     (F2 = Open saved doc)     F3 = Dictation     (F4 = Read word doc)   /   F5 = Print     F6 = Save     F7 = Magnifier     F8 =
+; (F1 = Open new doc)     (F2 = Open saved doc)     F3 = Dictation     (F4 = Read word doc)   /   F5 = Print     F6 = Save     F7 = Magnifier     F8 = Input speaker
 
 ; Dictation
 F3::Send, #h
@@ -107,7 +105,7 @@ Return
 ;     Clipboard := clipContent
 ; Return
 
-; Start/Stop Magnifier
+; Toggle Magnifier
 F7::
     if (WinExist(drMagnifier "ahk_class AutoHotkey")) {
         WinClose
@@ -139,13 +137,23 @@ NumpadSub::
 	}
 Return
 
+; Toggle input speaker
+F8::
+    if (WinExist(drInput "ahk_class AutoHotKey")) {
+        WinKill
+        voice.speak("Input speaker closed", 1)
+    }
+    else {
+        Run, %drInput% "ahk_class AutoHotkey"
+        voice.speak("Input speaker running", 1)
+    }
 
 ; Restart all scripts
 F12::
-    ; Kill drWordPad and drInput - the 2 scripts that use sapi speak()
+    ; These 2 scripts that use sapi speak()
     ; as they won't be restarted using run if speak() is speaking
-    WinKill, % scriptNames[2] "ahk_class AutoHotkey"
-    WinKill, % scriptNames[3] "ahk_class AutoHotkey"
+    WinClose, % drWordPad "ahk_class AutoHotkey"
+    WinClose, % drInput   "ahk_class AutoHotkey"
 
     voice.Speak("Restarting")
     startScripts()
@@ -153,44 +161,13 @@ F12::
 Return
 
 startScripts() {
-    deleteFiles()
-
     for index, name in scriptNames {
         Run, % name 
     }
 }
 
-deleteFiles() {
-    if FileExist(inputFile) {
-        FileDelete, % inputFile
-    }
-    
-    if FileExist(speechFinishedFile) {
-        FileDelete, % speechFinishedFile
-    }
-}
-Return
-
 closeScripts() {
     for index, name in scriptNames {
-        WinKill, % name 
+        WinClose, % name
     }
-
-    deleteFiles()
 }
-
-;-------------------------------------------------------------------------------
-; Reload on Save
-;-------------------------------------------------------------------------------
-~^s::
-    Sleep 200
-    WinGetActiveTitle, activeTitle
-    activeTitle := StrReplace(activeTitle, " - Visual Studio Code")
-
-    if (activeTitle = A_ScriptName) {
-        ToolTip, %A_ScriptName%, 1770, 959
-        sleep 800
-        ToolTip
-        Reload
-    }
-return
