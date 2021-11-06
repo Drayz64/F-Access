@@ -10,6 +10,10 @@ DetectHiddenText, Off
 DetectHiddenWindows, On
 SetTitleMatchMode, 2
 
+; Buffers any physical keyboard or mouse activity during the send
+; Therefore improves reliability of Click and MouseMove inside zoom()
+SendMode, Input
+
 voice := ComObjCreate("SAPI.SpVoice")
 voice.Volume := 100
 voice.Rate := 2
