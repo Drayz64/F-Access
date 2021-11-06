@@ -68,11 +68,6 @@ F6::
             sleep 1000
             Gui, Destroy
         }
-<<<<<<< HEAD
-    }
-Return
-
-=======
 
         if !ErrorLevel {
             Gui, Font, s40
@@ -111,7 +106,6 @@ ButtonOk:
     Clipboard := clipContent
 Return
 
->>>>>>> Removed comments for the save as gui code
 ; Toggle Magnifier
 F7::
     if WinExist(drMagnifier "ahk_class AutoHotkey") {
