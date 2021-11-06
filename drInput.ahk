@@ -7,10 +7,13 @@ SetWorkingDir %A_ScriptDir% ; Ensures a consistent starting directory.
 #SingleInstance, force
 ; Persistent not required because infinite loop
 
-inputFile := "input.txt"
+voice := ComObjCreate("SAPI.SpVoice")
+; voice.Volume := 100
+voice.Rate := 1
+lngHandle := voice.SpeakCompleteEvent()
 
 Loop {
-	Input, word, V, {Space}.{`,}{?}{!}{Enter}, ; Store input in word, V = visible (user input not blocked), Logger stops when space or enter pressed
+	Input, word, V, {Space}.{`,}{?}{!}{Enter}, ; V = visible (user input not blocked), word finished with space, fullstop, comma etc.
 
     if (InStr(ErrorLevel, "EndKey:")) {
 
@@ -18,9 +21,6 @@ Loop {
             continue
         }
 
-        ; Send typed word to queue
-        FileAppend, % word . "`n", %inputFile%
+        voice.Speak(word, 1) ; 1 = Asynchronous -> If word still being spoken then adds word to TTS's input queue
     }
 }
-
-;FileAppend, %word%`n, %inputFile%

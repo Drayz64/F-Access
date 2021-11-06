@@ -24,7 +24,7 @@ deleteFiles()
 global voice := ComObjCreate("SAPI.SpVoice")
 
 ; Alternative fix is to loop through files in working dir and populate scriptNames with files starting in "dr"
-global scriptNames := ["drMagnifier", "drWordPad", "drInput", "drQueue", "drSpeaker"]
+global scriptNames := ["drMagnifier", "drWordPad", "drInput"]
 
 ; Append each file name with the file extension of drHotKeys
 SplitPath, A_ScriptName, , , extension
@@ -142,10 +142,10 @@ Return
 
 ; Restart all scripts
 F12::
-    ; Kill drWordPad and drSpeaker - the 2 scripts that use sapi speak()
+    ; Kill drWordPad and drInput - the 2 scripts that use sapi speak()
     ; as they won't be restarted using run if speak() is speaking
     WinKill, % scriptNames[2] "ahk_class AutoHotkey"
-    WinKill, % scriptNames[5] "ahk_class AutoHotkey"
+    WinKill, % scriptNames[3] "ahk_class AutoHotkey"
 
     voice.Speak("Restarting")
     startScripts()
