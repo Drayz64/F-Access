@@ -46,10 +46,42 @@ F3::Send, #h
 
 ; Print
 F5::
+    if(printerOffline()) {
+        voice.speak("Unable to print, please turn on your printer", 1)
+        Return
+    }
+
     Send ^p
     Sleep 500
     Send {Enter}
+    voice.speak("Printing", 1)
 Return
+
+printerOffline() {
+    defaultPrinter := getDefaultPrinter()
+    RegRead, printerStatus, HKLM\System\CurrentControlSet\Control\Print\Printers\%defaultPrinter%, Status
+
+    ; PRINTER_STATUS_OFFLINE   = 0x80  -> The printer is offline.
+    ; PRINTER_STATUS_IO_ACTIVE = 0x100 -> The printer is in an active input or output state.
+
+    ; 0x180 -> 384
+
+    if (printerStatus = 384) {
+        return True ; Printer offline
+    }
+
+    return False
+}
+
+getDefaultPrinter() {
+    if !(DllCall("winspool.drv\GetDefaultPrinter", "ptr", 0, "uint*", size)) {
+        size := VarSetCapacity(buf, size << 1, 0)
+
+        if (DllCall("winspool.drv\GetDefaultPrinter", "str", buf, "uint*", size))
+            return buf
+    }
+    return false
+}
 
 ; Save
 F6::
