@@ -38,6 +38,3 @@ F12 = Restart all scripts
 
 NumPad Add = Zoom magnifier in (if running) - otherwise normal zoom in\
 NumPad Sub = Zoom magnifier out (if running) - otherwise normal zoom out
-
-## Other
-The base of the code for drMagnifier comes from this [script](https://autohotkey.com/board/topic/10660-screenmagnifier/)
