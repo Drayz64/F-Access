@@ -1,5 +1,5 @@
 # F-Access
-A repository containing ahk scripts which provide a screen magnifier and an input reader, as well as remapped function keys - that are specifically implemented for enabling quick and easy use of wordpad.
+A repository containing ahk scripts which provide a screen magnifier and an input reader, as well as remapped function keys - that are specifically implemented for enabling quick and easy use of WordPad.
 
 ## Instructions & Information
 - If you haven't downloaded [AutoHotKey](https://www.autohotkey.com/) then you can still run F-Access using the .exe scripts inside [compiledScripts](compiledScripts)
