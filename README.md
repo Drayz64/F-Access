@@ -11,7 +11,7 @@ Personalised function keys for better accessibility, specifically for using Word
 3. Remapped function keys ([HotKeys](#hotkeys))
 
 ## Instructions
-- If you haven't downloaded [AutoHotKey](https://www.autohotkey.com/) then you can still run F-Access using the .exe scripts inside [compiledScripts](compiledScripts)
+- If you haven't downloaded [AutoHotKey](https://www.autohotkey.com/) then you can still run F-Access using the executable scripts inside [releases](https://github.com/Drayz64/F-Access/releases)
 <br/>
 
 - Keep all the .ahk scripts together in the same folder (same for the .exe compiled scripts)
