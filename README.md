@@ -46,4 +46,4 @@ NumPad Sub = Zoom magnifier out (if running) - otherwise normal zoom out
 
 ## Other
 
-When F5 is pressed for printing it checks if the default printer is offline - if this is the case then the print is prevented. This doesn't work for all types of printers, therefore <kbd>Alt + F5</kbd> turns of the offline printer check.
+When F5 is pressed for printing it checks if the default printer is offline - if this is the case then the print is prevented. This doesn't work for all types of printers, therefore <kbd>Alt + F5</kbd> can be used to disable the offline printer check.
