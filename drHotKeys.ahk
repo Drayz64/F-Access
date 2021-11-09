@@ -1,9 +1,7 @@
 ﻿#NoEnv ; Recommended for performance and compatibility with future AutoHotkey releases.
-; #Warn ; Enable warnings to assist with detecting common errors.
 SendMode Input ; Recommended for new scripts due to its superior speed and reliability.
 SetWorkingDir %A_ScriptDir% ; Ensures a consistent starting directory.
 
-;#NoTrayIcon
 DetectHiddenWindows, On
 SetTitleMatchMode, 2
 #SingleInstance, force
@@ -11,11 +9,13 @@ SetTitleMatchMode, 2
 ;-------------------------------------------------------------------------------
 ; Auto Execute - Until return, exit, hotkey/string encountered
 ;-------------------------------------------------------------------------------
-SysGet, workArea, MonitorWorkArea
-screenWidth  := workAreaRight
-screenHeight := workAreaBottom
 
-OnExit("closeScripts")
+settingsFile := "projectSettings.ini"
+
+; Retrieving saved settings
+IniRead, offlineCheckAllowed, % settingsFile, Printing, OfflineCheck, True
+
+OnExit, closeScripts
 
 voice := ComObjCreate("SAPI.SpVoice")
 
@@ -32,7 +32,7 @@ drWordPad   := % scriptNames[2]
 drInput     := % scriptNames[3]
 
 startScripts()
-voice.Speak("Successfully started", 1)
+voice.Speak("F-Access Running", 1)
 
 ;-------------------------------------------------------------------------------
 ; Auto Execute End
@@ -46,8 +46,17 @@ F3::Send, #h
 
 ; Print
 F5::
-    if(printerOffline()) {
-        voice.speak("Unable to print, please turn on your printer", 1)
+    defaultPrinter := getDefaultPrinter()
+
+    if (defaultPrinter = False) {
+        voice.speak("Unable to find your default printer")
+        Return
+    }
+
+    printerName := StrSplit(defaultPrinter, A_Space) ; Incase of a long printer name
+
+    if (offlineCheckAllowed and printerOffline(defaultPrinter)) {
+        voice.speak("Unable to print, please turn on your " printerName[1] " printer", 1)
         Return
     }
 
@@ -57,31 +66,52 @@ F5::
     voice.speak("Printing", 1)
 Return
 
-printerOffline() {
-    defaultPrinter := getDefaultPrinter()
-    RegRead, printerStatus, HKLM\System\CurrentControlSet\Control\Print\Printers\%defaultPrinter%, Status
+getDefaultPrinter() {
+    if !(DllCall("winspool.drv\GetDefaultPrinter", "ptr", 0, "uint*", size)) { ; Getting the required size for the buffer to hold the printer's name
+        size := VarSetCapacity(printer, size*2, 0)
 
+        if (DllCall("winspool.drv\GetDefaultPrinter", "str", printer, "uint*", size))
+            Return printer
+    }
+    Return False
+}
+
+printerOffline(printerName) {
+    RegRead, printerAttributes, HKLM\System\CurrentControlSet\Control\Print\Printers\%printerName%, Attributes
+
+    ; *Status flags method*
     ; PRINTER_STATUS_OFFLINE   = 0x80  -> The printer is offline.
     ; PRINTER_STATUS_IO_ACTIVE = 0x100 -> The printer is in an active input or output state.
+    ;                          = 0x180 (384 decimal)
 
-    ; 0x180 -> 384
+    ; *PrintUI dll method*
+    ; rundll32.exe printui.dll PrintUIEntry /Xg /n "EPSON91D7A1 (ET-2600 Series)" /f "printerSettings.txt" /q
 
-    if (printerStatus = 384) {
-        return True ; Printer offline
+    ; *Attributes flags method*
+    ; PRINTER_ATTRIBUTE_DO_COMPLETE_FIRST = 0x200
+    ; PRINTER_ATTRIBUTE_ENABLE_BIDI       = 0x800
+    ; PRINTER_ATTRIBUTE_WORK_OFFLINE      = 0x400
+    ;                                     = 0xe00 (3584 decimal)
+
+    ; msgbox % Format("0x{:X}", printerAttributes)
+
+    if (printerAttributes = 3584) {
+        Return True ; Printer offline
     }
 
     return False
 }
 
-getDefaultPrinter() {
-    if !(DllCall("winspool.drv\GetDefaultPrinter", "ptr", 0, "uint*", size)) {
-        size := VarSetCapacity(buf, size << 1, 0)
+; Toggle the offlineCheck
+!F5::
+    offlineCheckAllowed := !offlineCheckAllowed
 
-        if (DllCall("winspool.drv\GetDefaultPrinter", "str", buf, "uint*", size))
-            return buf
-    }
-    return false
-}
+    str := "Disabled"
+    if (offlineCheckAllowed)
+        str := "Enabled"
+    
+    voice.speak(str " offline printer check", 1)
+Return
 
 ; Save
 F6::
@@ -90,7 +120,7 @@ F6::
         sleep 50
         WinWait, Save As ahk_exe wordpad.exe,,0
 
-        ; Pop Up confirmation message
+        ; Pop Up confirmation message for a regular save
         if ErrorLevel {
             Gui, Font, s40
             Gui, Color, EEAA99 ; Pink/Orange background
@@ -154,9 +184,9 @@ F12::
     WinClose, % drWordPad "ahk_class AutoHotkey"
     WinClose, % drInput   "ahk_class AutoHotkey"
 
-    voice.Speak("Restarting")
-    startScripts()
-    voice.Speak("Successfully restarted", 1) ; 1 => Asynchronous speech
+    voice.Speak("Restarting", 3) ; Asynchronous | PurgeBeforeSpeach
+    voice.WaitUntilDone(-1)
+    Reload
 Return
 
 startScripts() {
@@ -165,8 +195,10 @@ startScripts() {
     }
 }
 
-closeScripts() {
+closeScripts:
     for index, name in scriptNames {
         WinClose, % name "ahk_class AutoHotkey"
     }
-}
+
+    IniWrite, % offlineCheckAllowed, % settingsFile, Printing, OfflineCheck
+ExitApp
