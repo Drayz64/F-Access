@@ -17,7 +17,8 @@ IniRead, offlineCheckAllowed, % settingsFile, Printing, OfflineCheck, True
 
 OnExit, closeScripts
 
-voice := ComObjCreate("SAPI.SpVoice")
+global voice := ComObjCreate("SAPI.SpVoice")
+global mute  := True
 
 ; Alternative fix is to loop through files in working dir and populate scriptNames with files starting in "dr"
 global scriptNames := ["drMagnifier", "drWordPad", "drInput"]
@@ -32,7 +33,7 @@ drWordPad   := % scriptNames[2]
 drInput     := % scriptNames[3]
 
 startScripts()
-voice.Speak("F-Access Running", 1)
+speak("F-Access Running", 1)
 
 ;-------------------------------------------------------------------------------
 ; Auto Execute End
@@ -49,21 +50,21 @@ F5::
     defaultPrinter := getDefaultPrinter()
 
     if (defaultPrinter = False) {
-        voice.speak("Unable to find your default printer")
+        speak("Unable to find your default printer", 0)
         Return
     }
 
     printerName := StrSplit(defaultPrinter, A_Space) ; Incase of a long printer name
 
     if (offlineCheckAllowed and printerOffline(defaultPrinter)) {
-        voice.speak("Unable to print, please turn on your " printerName[1] " printer", 1)
+        speak("Unable to print, please turn on your " printerName[1] " printer", 1)
         Return
     }
 
     Send ^p
     Sleep 500
     Send {Enter}
-    voice.speak("Printing", 1)
+    speak("Printing", 1)
 Return
 
 getDefaultPrinter() {
@@ -110,7 +111,7 @@ printerOffline(printerName) {
     if (offlineCheckAllowed)
         str := "Enabled"
     
-    voice.speak(str " offline printer check", 1)
+    speak(str " offline printer check", 1)
 Return
 
 ; Save
@@ -137,11 +138,11 @@ Return
 F7::
     if WinExist(drMagnifier "ahk_class AutoHotkey") {
         WinClose
-        voice.speak("Magnifier Closed", 1)
+        speak("Magnifier Closed", 1)
     }
     else {
         Run, %drMagnifier% "ahk_class AutoHotkey"
-        voice.speak("Magnifier Open", 1)
+        speak("Magnifier Open", 1)
     }
 Return
 
@@ -169,11 +170,11 @@ Return
 F8::
     if WinExist(drInput "ahk_class AutoHotkey") {
         WinKill
-        voice.speak("Input speaker closed", 1)
+        speak("Input speaker closed", 1)
     }
     else {
         Run, %drInput% "ahk_class AutoHotkey"
-        voice.speak("Input speaker running", 1)
+        speak("Input speaker running", 1)
     }
 Return
 
@@ -184,10 +185,18 @@ F12::
     WinClose, % drWordPad "ahk_class AutoHotkey"
     WinClose, % drInput   "ahk_class AutoHotkey"
 
-    voice.Speak("Restarting", 3) ; Asynchronous | PurgeBeforeSpeach
+    speak("Restarting", 3) ; Asynchronous | PurgeBeforeSpeach
     voice.WaitUntilDone(-1)
     Reload
 Return
+
+speak(sentence, flag := 0) {
+    if (mute) {
+        return
+    }
+
+    voice.Speak(sentence, flag)
+}
 
 startScripts() {
     for index, name in scriptNames {
