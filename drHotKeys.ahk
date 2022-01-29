@@ -35,18 +35,34 @@ drInput     := % scriptNames[3]
 startScripts()
 speak("F-Access Running", 1)
 
+visible := False
+
+;TODO - handle .exe and .ahk
+#Include, settingsGUI.ahk 
+
 ;-------------------------------------------------------------------------------
 ; Auto Execute End
 Return
 ;-------------------------------------------------------------------------------
 
+F3::
+    if (visible) {
+        Gui, Hide
+    }
+    else {
+        Gui, Show, , % "Project Settings"
+    }
+
+    visible := !visible
+Return
+
 ; (F1 = Open new doc)     (F2 = Open saved doc)     F3 = Dictation     (F4 = Read word doc)   /   F5 = Print     F6 = Save     F7 = Magnifier     F8 = Input speaker
 
-; Dictation
-F3::Send, #h
+toggleDictation:
+    Send, #h
+Return
 
-; Print
-F5::
+print:
     defaultPrinter := getDefaultPrinter()
 
     if (defaultPrinter = False) {
@@ -103,8 +119,8 @@ printerOffline(printerName) {
     return False
 }
 
-; Toggle the offlineCheck
-!F5::
+; TODO - Should just be a checkbox in the settings
+toggleOfflineCheck:
     offlineCheckAllowed := !offlineCheckAllowed
 
     str := "Disabled"
@@ -114,8 +130,8 @@ printerOffline(printerName) {
     speak(str " offline printer check", 1)
 Return
 
-; Save
-F6::
+
+saveDoc:
     if (WinActive("ahk_exe WORDPAD.EXE")) {
         Send ^s
         sleep 50
@@ -134,8 +150,8 @@ F6::
     }
 Return
 
-; Toggle Magnifier
-F7::
+
+toggleMag:
     if WinExist(drMagnifier "ahk_class AutoHotkey") {
         WinClose
         speak("Magnifier Closed", 1)
@@ -178,8 +194,8 @@ F8::
     }
 Return
 
-; Restart all scripts
-F12::
+
+restart:
     ; Close the 2 scripts that use sapi speak() before restarting
     ; as restarting won't work if speak() is speaking
     WinClose, % drWordPad "ahk_class AutoHotkey"
