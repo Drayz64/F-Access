@@ -10,11 +10,6 @@ SetTitleMatchMode, 2
 ; Auto Execute - Until return, exit, hotkey/string encountered
 ;-------------------------------------------------------------------------------
 
-settingsFile := "projectSettings.ini"
-
-; Retrieving saved settings
-IniRead, offlineCheckAllowed, % settingsFile, Printing, OfflineCheck, True
-
 OnExit, closeScripts
 
 global voice := ComObjCreate("SAPI.SpVoice")
@@ -50,7 +45,7 @@ F3::
         Gui, Hide
     }
     else {
-        Gui, Show, , % "Project Settings"
+        Gui, Show
     }
 
     visible := !visible
@@ -119,16 +114,15 @@ printerOffline(printerName) {
     return False
 }
 
-; TODO - Should just be a checkbox in the settings
-toggleOfflineCheck:
-    offlineCheckAllowed := !offlineCheckAllowed
+; toggleOfflineCheck:
+;     offlineCheckAllowed := !offlineCheckAllowed
 
-    str := "Disabled"
-    if (offlineCheckAllowed)
-        str := "Enabled"
+;     str := "Disabled"
+;     if (offlineCheckAllowed)
+;         str := "Enabled"
     
-    speak(str " offline printer check", 1)
-Return
+;     speak(str " offline printer check", 1)
+; Return
 
 
 saveDoc:

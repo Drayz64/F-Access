@@ -14,14 +14,17 @@ SetWorkingDir %A_ScriptDir% ; Ensures a consistent starting directory.
 ;-------------------------------------------------------------------------------
 
 ; TODO:
+; - Fix issues with F3 and minimise/close/exit
 ; - How to set up default hotkeys??? (F!, F2...)
 ; - Handle Duplicate hotkeys
 ; - Restrict hotkeys
 ; - Only save and update changed hotkeys?
 ;
 ; - Cancel button to revert unsaved changes (loading the saved settings - similar to startup???)
+; - Default button (linked with default hotkeys)
 ;
-; - Add checkbox settings (in different tab?)
+; - Checkbox for magnifier showing on startup
+; - checkbox for words typed being spoken
 ; - Exit script when gui closed? (exit button needed?)
 
 
@@ -54,9 +57,14 @@ savedHotKeys := []
 buttonW := 75
 centered := False
 
+settingsFile := "projectSettings.ini"
+
+; Retrieving saved settings
+IniRead, offlineCheckAllowed, % settingsFile, Printing, OfflineCheck, True
+
 ; Retrieving the saved keys and creating hotkeys from them
 for i, name in hotkeyNames {
-    IniRead, key, projectSettings.ini, HotKeys, % name
+    IniRead, key, % settingsFile, HotKeys, % name
 
     if (key != "ERROR") {
         HotKey, % key, % name, on
@@ -66,6 +74,8 @@ for i, name in hotkeyNames {
     ; Store the key
     savedHotKeys[i] := key
 }
+
+; Gui, +ToolWindow
 
 ; Adding the descriptions for the hotkeys to the GUI
 first := True
@@ -84,18 +94,20 @@ for each, descr in hotkeyDescr {
 first := True
 for i, name in hotkeyNames {
     if (first) {
-        Gui, Add, Hotkey, vCustom%i% gEnableSaveButton ys, % savedHotKeys[i]
+        Gui, Add, Hotkey, vCustom%i% gEnableSave ys, % savedHotKeys[i]
         first := False
         continue
     }
 
-    Gui, Add, Hotkey, vCustom%i% gEnableSaveButton, % savedHotKeys[i]
+    Gui, Add, Hotkey, vCustom%i% gEnableSave, % savedHotKeys[i]
 }
-    
+
+Gui, Add, CheckBox, vPrinterCheck gEnableSave Checked%offlineCheckAllowed% xs, % "Enable printer offline check?"
 
 ; Buttons
 Gui, Add, Button, x0 w%buttonW% vSaveButton, Save
 Gui, Add, Button, x+10 w%buttonW% vExitButton, Exit
+GuiControl, Disable, SaveButton
 
 Gui, Show, Hide
 
@@ -131,19 +143,22 @@ ButtonSave:
         ; Creating new hotkey & saving it
         if (%custom% != "") {
             HotKey, % %custom%, % name, on
-            IniWrite, % %custom%, projectSettings.ini, HotKeys, % name
+            IniWrite, % %custom%, % settingsFile, HotKeys, % name
         }
         ; Delete hotkey
         else {
-            IniDelete, projectSettings.ini, HotKeys, % name
+            IniDelete, % settingsFile, HotKeys, % name
         }
 
         prevHotKey[i] := %custom%
     }
 
+    offlineCheckAllowed := PrinterCheck
+    IniWrite, % PrinterCheck, % settingsFile, Printing, OfflineCheck
+
     GuiControl, Disable, SaveButton ; Providing feedback to the user
 Return
 
-EnableSaveButton() {
+EnableSave() {
     GuiControl, Enable, SaveButton
 }
