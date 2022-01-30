@@ -45,7 +45,7 @@ F3::
         Gui, Hide
     }
     else {
-        Gui, Show
+        Gui, Show, , % "Project Settings"
     }
 
     visible := !visible
