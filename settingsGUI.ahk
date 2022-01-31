@@ -65,6 +65,7 @@ settingsFile := "projectSettings.ini"
 ; Retrieving saved settings
 IniRead, offlineCheckAllowed, % settingsFile, Printing, OfflineCheck, True
 IniRead, mute, % settingsFile, Voice, Mute, False
+IniRead, muteTyped, % settingsFile, Voice, MuteTyped, False
 
 ; The saved keys are retrieved in the order of the names in hotkeyNames
 for i, name in hotkeyNames {
@@ -92,6 +93,7 @@ constructGUI() {
     ; Adding checkboxes
     Gui, Add, CheckBox, vofflineCheckAllowed gEnableSave Checked%offlineCheckAllowed% xm, % "Enable printer offline check?"
     Gui, Add, CheckBox, vmute gEnableSave Checked%mute% xm, % "Mute commands being spoken?"
+    Gui, Add, CheckBox, vmuteTyped gEnableSave Checked%muteTyped% xm, % "Mute typed words being spoken?"
 
     ; Adding control buttons
     Gui, Add, Button, xm w%buttonW% vDefaultButton gDefault, % "Default"
@@ -151,6 +153,7 @@ Save() {
 
     IniWrite, % offlineCheckAllowed, % settingsFile, Printing, OfflineCheck
     IniWrite, % mute, % settingsFile, Voice, Mute
+    IniWrite, % muteTyped, % settingsFile, Voice, MuteTyped
 
     GuiControl, Disable, SaveButton ; Providing feedback to the user
     GuiControl, Disable, CancelButton
@@ -158,6 +161,8 @@ Save() {
 
 Default() {
     global
+
+    ; TODO - Shouldn't be enabled if checkboxes change, because that doesn' affect default???
 
     for i, key in defaultKeys {
         ; Using custom just as a ControlID
@@ -186,8 +191,9 @@ Cancel() {
         GuiControl, , % custom, % key
     }
 
-    GuiControl, , mute, % mute
     GuiControl, , offlineCheckAllowed, % offlineCheckAllowed
+    GuiControl, , mute, % mute
+    GuiControl, , muteTyped, % muteTyped
 
     GuiControl, Disable, CancelButton
     GuiControl, Disable, SaveButton

@@ -17,7 +17,7 @@ global voice := ComObjCreate("SAPI.SpVoice")
 visible := False
 
 ; Alternative fix is to loop through files in working dir and populate scriptNames with files starting in "dr"
-global scriptNames := ["drMagnifier", "drWordPad", "drInput"]
+global scriptNames := ["drMagnifier", "drWordPad"]
 
 ; Append each file name with the file extension of drHotKeys
 SplitPath, A_ScriptName, , , extension
@@ -26,12 +26,16 @@ for index, fileName in scriptNames {
 }
 drMagnifier := % scriptNames[1]
 drWordPad   := % scriptNames[2]
-drInput     := % scriptNames[3]
 
 startScripts()
 
 ; TODO - handle .exe and .ahk
 #Include, settingsGUI.ahk
+#Include, drInput.ahk
+
+; TODO
+; - Pause voice when trying to restart???
+; - Commands purge what is being spoken - is that okay?
 
 constructGUI()
 
@@ -179,24 +183,24 @@ NumpadSub::
 	}
 Return
 
-; Toggle input speaker
-F8::
-    if WinExist(drInput "ahk_class AutoHotkey") {
-        WinKill
-        speak("Input speaker closed", 1)
-    }
-    else {
-        Run, %drInput% "ahk_class AutoHotkey"
-        speak("Input speaker running", 1)
-    }
-Return
+; ; Toggle input speaker
+; F8::
+;     if WinExist(drInput "ahk_class AutoHotkey") {
+;         WinKill
+;         speak("Input speaker closed", 1)
+;     }
+;     else {
+;         Run, %drInput% "ahk_class AutoHotkey"
+;         speak("Input speaker running", 1)
+;     }
+; Return
 
 
 restart:
     ; Close the 2 scripts that use sapi speak() before restarting
     ; as restarting won't work if speak() is speaking
     WinClose, % drWordPad "ahk_class AutoHotkey"
-    WinClose, % drInput   "ahk_class AutoHotkey"
+    ; WinClose, % drInput   "ahk_class AutoHotkey"
 
     speak("Restarting", 3) ; Asynchronous | PurgeBeforeSpeach
     voice.WaitUntilDone(-1)
