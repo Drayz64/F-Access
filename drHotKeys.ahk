@@ -13,7 +13,8 @@ SetTitleMatchMode, 2
 OnExit, closeScripts
 
 global voice := ComObjCreate("SAPI.SpVoice")
-global mute  := True
+
+visible := False
 
 ; Alternative fix is to loop through files in working dir and populate scriptNames with files starting in "dr"
 global scriptNames := ["drMagnifier", "drWordPad", "drInput"]
@@ -28,12 +29,13 @@ drWordPad   := % scriptNames[2]
 drInput     := % scriptNames[3]
 
 startScripts()
+
+; TODO - handle .exe and .ahk
+#Include, settingsGUI.ahk
+
+constructGUI()
+
 speak("F-Access Running", 1)
-
-visible := False
-
-;TODO - handle .exe and .ahk
-#Include, settingsGUI.ahk 
 
 ;-------------------------------------------------------------------------------
 ; Auto Execute End
@@ -148,11 +150,12 @@ Return
 toggleMag:
     if WinExist(drMagnifier "ahk_class AutoHotkey") {
         WinClose
-        speak("Magnifier Closed", 1)
+        ; TODO - Want to purge if last speak was about magnifier
+        speak("Magnifier Closed", 3)
     }
     else {
         Run, %drMagnifier% "ahk_class AutoHotkey"
-        speak("Magnifier Open", 1)
+        speak("Magnifier Open", 3)
     }
 Return
 
@@ -201,6 +204,7 @@ restart:
 Return
 
 speak(sentence, flag := 0) {
+    global mute
     if (mute) {
         return
     }
@@ -219,5 +223,5 @@ closeScripts:
         WinClose, % name "ahk_class AutoHotkey"
     }
 
-    IniWrite, % offlineCheckAllowed, % settingsFile, Printing, OfflineCheck
+    ; IniWrite, % offlineCheckAllowed, % settingsFile, Printing, OfflineCheck
 ExitApp
