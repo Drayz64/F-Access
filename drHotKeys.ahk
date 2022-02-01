@@ -12,8 +12,8 @@ SetTitleMatchMode, 2
 
 OnExit, closeScripts
 
-global voice := ComObjCreate("SAPI.SpVoice")
-global commandVoice := ComObjCreate("SAPI.SpVoice") ; TODO - Use a different voice? (will have to check user has 2 voices)
+global VoiceTyped   := ComObjCreate("SAPI.SpVoice")
+global VoiceCommand := ComObjCreate("SAPI.SpVoice")
 commandVoice.Priority := 1 ; Alert priority
 
 visible := False
@@ -29,7 +29,9 @@ for index, fileName in scriptNames {
 drMagnifier := % scriptNames[1]
 drWordPad   := % scriptNames[2]
 
-startScripts()
+inputHook := InputHook("V", "{Space}.{`,}{?}{!}{Enter}")
+inputHook.OnEnd := Func("speakWord")
+inputHook.Start()
 
 ; TODO - handle .exe and .ahk
 #Include, settingsGUI.ahk
@@ -40,7 +42,7 @@ startScripts()
 ; - Commands purge what is being spoken - is that okay?
 
 constructGUI()
-
+startScripts()
 speak("F-Access Running", 1)
 
 ;-------------------------------------------------------------------------------
@@ -205,21 +207,27 @@ restart:
     ; WinClose, % drInput   "ahk_class AutoHotkey"
 
     speak("Restarting", 3) ; Asynchronous | PurgeBeforeSpeach
-    voice.WaitUntilDone(-1)
+    VoiceCommand.WaitUntilDone(-1)
     Reload
 Return
 
 speak(sentence, flag := 0) {
-    global mute
-    if (mute) {
+    global CommandMute
+
+    if (CommandMute) {
         return
     }
 
-    commandVoice.Speak(sentence, flag)
+    VoiceCommand.Speak(sentence, flag)
 }
 
 startScripts() {
+    global magStartup
+
     for index, name in scriptNames {
+        if (index == 1 and !magStartup) {
+            continue
+        }
         Run, %name% "ahk_class AutoHotkey"
     }
 }
