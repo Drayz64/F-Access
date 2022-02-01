@@ -13,6 +13,8 @@ SetTitleMatchMode, 2
 OnExit, closeScripts
 
 global voice := ComObjCreate("SAPI.SpVoice")
+global commandVoice := ComObjCreate("SAPI.SpVoice") ; TODO - Use a different voice? (will have to check user has 2 voices)
+commandVoice.Priority := 1 ; Alert priority
 
 visible := False
 
@@ -213,7 +215,7 @@ speak(sentence, flag := 0) {
         return
     }
 
-    voice.Speak(sentence, flag)
+    commandVoice.Speak(sentence, flag)
 }
 
 startScripts() {
