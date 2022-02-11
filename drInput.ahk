@@ -1,20 +1,71 @@
-﻿inputHook := InputHook("V", "{Space}.{`,}{?}{!}{Enter}")
-inputHook.OnEnd := Func("speakWord")
-inputHook.Start()
+﻿sentence := ""
 
 speakWord(inputHook) {
-    global voice, muteTyped
+    global muteTyped, sentence
 
-    if (inputHook.EndReason == "EndKey") {
-        word := inputHook.Input
+    reason := inputHook.EndReason
+
+    if (reason == "EndKey") {
         
-        if (word != "" and !muteTyped) {
+        key := inputHook.EndKey ; TODO - Manually convert key to character???
 
-            ; TODO - If voie busy speaking instead of sending to voice - concatenate into string and send that???
+        sentence .= inputHook.Input . " "
 
-            voice.Speak(word, 1)
-        }        
+        if (sentence != "" and !muteTyped) { ; TODO - !muteTyped not needed now?
+
+            if (VoiceTyped.Status.RunningState == 2) {
+                if (!checking) {
+                    checkVoiceAvailable()
+                    checking := True
+                }
+            }
+            else {
+                VoiceTyped.Speak(sentence, 1)
+                sentence = ""
+            }
+        }
+    }
+    else if (reason == "Stopped") {
+        ; muteTyped = True
+        Return
     }
 
-    inputHook.Start()
+    inputHook.Start() ; Capture the next word that is typed
 }
+
+
+checkVoiceAvailable() {
+    global sentence
+
+    if (VoiceTyped.Status.RunningState == 2) {
+        SetTimer, checkVoiceAvailable, -100
+    }
+    else {
+        SetTimer, checkVoiceAvailable, Off
+        VoiceTyped.Speak(sentence, 1)
+        sentence = ""
+    }
+}
+
+
+
+; speakWord(inputHook) {
+;     global voice, muteTyped
+
+;     reason := inputHook.EndReason
+
+;     if (reason == "EndKey") {
+
+;         word := inputHook.Input
+
+;         if (word != "" and !muteTyped) {
+;             voice.Speak(word, 1)
+;         }        
+;     }
+;     else if (reason == "Stopped") {
+;         ; muteTyped = True
+;         Return
+;     }
+
+;     inputHook.Start() ; Capture the next word that is typed
+; }
