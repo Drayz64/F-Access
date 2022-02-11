@@ -14,7 +14,7 @@ OnExit, closeScripts
 
 global VoiceTyped   := ComObjCreate("SAPI.SpVoice")
 global VoiceCommand := ComObjCreate("SAPI.SpVoice")
-commandVoice.Priority := 1 ; Alert priority
+VoiceCommand.Priority := 1 ; Alert priority
 
 visible := False
 
@@ -158,8 +158,7 @@ Return
 toggleMag:
     if WinExist(drMagnifier "ahk_class AutoHotkey") {
         WinClose
-        ; TODO - Want to purge if last speak was about magnifier
-        speak("Magnifier Closed", 3)
+        speak("Magnifier Closed", 3) ; TODO - Is purging okay?
     }
     else {
         Run, %drMagnifier% "ahk_class AutoHotkey"

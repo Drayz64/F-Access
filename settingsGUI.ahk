@@ -85,13 +85,9 @@ constructGUI() {
     Gui, Add, CheckBox, xm vmagStartUp          gEnableSave Checked%magStartup%         , % "Open magnifier on startup of F-Access"
 
 
-    ;TODO:
-    ; - GetVoices()???
-    ; - Handle user having no voices???
-    ; - v.GetDescription - Gives the accent (USA, UK)
-
+    ;TODO - Handle user having no voices???
     voicesList := ""
-    for v in voiceTyped.GetVoices {
+    for v in VoiceTyped.GetVoices() {
         voiceName  := v.GetAttribute("Name")
         voicesList .= voiceName . "|"
     }
@@ -103,7 +99,10 @@ constructGUI() {
     IniRead, CommandMute , % settingsFile, CommandVoice, Mute  , 0
     VoiceCommand.Volume := CommandVol
     VoiceCommand.Rate   := CommandRate
-    VoiceCommand.Voice  := VoiceTyped.GetVoices().Item(CommandVoice-1)
+
+    msgbox % CommandVoice
+    
+    VoiceCommand.Voice  := VoiceCommand.GetVoices().Item(CommandVoice-1)
 
     IniRead, TypedVol  , % settingsFile, TypedVoice, Volume, 100
     IniRead, TypedRate , % settingsFile, TypedVoice, Rate  , 0
@@ -111,11 +110,15 @@ constructGUI() {
     IniRead, TypedMute , % settingsFile, TypedVoice, Mute  , 0
     VoiceTyped.Volume := TypedVol
     VoiceTyped.Rate   := TypedRate
+
+    msgbox % TypedVoice
+
     VoiceTyped.Voice  := VoiceTyped.GetVoices().Item(TypedVoice-1)
 
     ; TODO:
     ; - Place in a funtion?
     ; - Local CommandVolText?
+    ; - Place GroupBoxes side by side?
 
     ; Command Voice
     Gui, Add, GroupBox, xm y+20 w300 r8 Section, Command Voice
@@ -134,7 +137,7 @@ constructGUI() {
     Gui, Add, Slider,   xs+60 ys+20  w200 vTypedVol   gEnableSave Range0-100  ToolTip TickInterval5 Buddy1TypedVolText , % TypedVol
     Gui, Add, Slider,   xs+60 ys+60  w200 vTypedRate  gEnableSave Range-10-10 ToolTip TickInterval1 Buddy1TypedRateText, % TypedRate
     Gui, Add, Text,     xs+10 ys+110 w50, % "Voice"
-    Gui, Add, DDL,      x+5   ys+110 w150 vTypedVoice gEnableSave Choose%CommandVoice%, % voicesList
+    Gui, Add, DDL,      x+5   ys+110 w150 vTypedVoice gEnableSave Choose%TypedVoice%, % voicesList
     Gui, Add, CheckBox, xs+10 ys+140      vTypedMute  gEnableSave Checked%TypedMute%  , % "Mute typed words being spoken?"
 
     ; Control buttons
@@ -204,7 +207,7 @@ Save() {
 
     VoiceCommand.Volume := CommandVol
     VoiceCommand.Rate   := CommandRate
-    VoiceCommand.Voice  := VoiceTyped.GetVoices().Item(CommandVoice-1)
+    VoiceCommand.Voice  := voiceCommand.GetVoices().Item(CommandVoice-1)
     IniWrite, % CommandVol  , % settingsFile, CommandVoice, Volume
     IniWrite, % CommandRate , % settingsFile, CommandVoice, Rate
     IniWrite, % CommandVoice, % settingsFile, CommandVoice, Voice
