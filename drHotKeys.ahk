@@ -16,8 +16,6 @@ global VoiceTyped   := ComObjCreate("SAPI.SpVoice")
 global VoiceCommand := ComObjCreate("SAPI.SpVoice")
 VoiceCommand.Priority := 1 ; Alert priority
 
-visible := False
-
 ; Alternative fix is to loop through files in working dir and populate scriptNames with files starting in "dr"
 global scriptNames := ["drMagnifier", "drWordPad"]
 
@@ -31,9 +29,7 @@ drWordPad   := % scriptNames[2]
 
 inputHook := InputHook("V", "{Space}.{`,}{?}{!}{Enter}")
 inputHook.OnEnd := Func("speakWord")
-inputHook.Start()
 
-; TODO - handle .exe and .ahk
 #Include, settingsGUI.ahk
 #Include, drInput.ahk
 
@@ -43,6 +39,11 @@ inputHook.Start()
 
 constructGUI()
 startScripts()
+
+if (!TypedMute) {
+    inputHook.Start()
+}
+
 speak("F-Access Running", 1)
 
 ;-------------------------------------------------------------------------------
@@ -51,14 +52,12 @@ Return
 ;-------------------------------------------------------------------------------
 
 F3::
-    if (visible) {
+    if WinActive("Project Settings") {
         Gui, Hide
     }
     else {
         Gui, Show, , % "Project Settings"
     }
-
-    visible := !visible
 Return
 
 ; (F1 = Open new doc)     (F2 = Open saved doc)     F3 = Dictation     (F4 = Read word doc)   /   F5 = Print     F6 = Save     F7 = Magnifier     F8 = Input speaker

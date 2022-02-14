@@ -98,10 +98,7 @@ constructGUI() {
     IniRead, CommandVoice, % settingsFile, CommandVoice, Voice , 1
     IniRead, CommandMute , % settingsFile, CommandVoice, Mute  , 0
     VoiceCommand.Volume := CommandVol
-    VoiceCommand.Rate   := CommandRate
-
-    msgbox % CommandVoice
-    
+    VoiceCommand.Rate   := CommandRate   
     VoiceCommand.Voice  := VoiceCommand.GetVoices().Item(CommandVoice-1)
 
     IniRead, TypedVol  , % settingsFile, TypedVoice, Volume, 100
@@ -110,9 +107,6 @@ constructGUI() {
     IniRead, TypedMute , % settingsFile, TypedVoice, Mute  , 0
     VoiceTyped.Volume := TypedVol
     VoiceTyped.Rate   := TypedRate
-
-    msgbox % TypedVoice
-
     VoiceTyped.Voice  := VoiceTyped.GetVoices().Item(TypedVoice-1)
 
     ; TODO:
@@ -221,9 +215,9 @@ Save() {
     IniWrite, % TypedVoice, % settingsFile, TypedVoice, Voice
     IniWrite, % TypedMute , % settingsFile, TypedVoice, Mute
 
-    mute   := !prevTypedMute and  muteTyped
-    unmute :=  prevTypedMute and !muteTyped
-    
+    mute   := !prevTypedMute and  TypedMute
+    unmute :=  prevTypedMute and !TypedMute
+
     if (mute) {
         inputHook.Stop()
     }
@@ -238,7 +232,7 @@ Save() {
 Default() {
     global
 
-    ; TODO - Shouldn't be enabled if checkboxes change, because that doesn' affect default???
+    ; TODO - Shouldn't be enabled if checkboxes change, because that doesn't affect default???
 
     for i, key in defaultKeys {
         ; Using custom just as a ControlID
