@@ -1,41 +1,21 @@
-﻿#NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
-; #Warn  ; Enable warnings to assist with detecting common errors.
-SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
-SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
-
-#NoTrayIcon
-#SingleInstance, force
-DetectHiddenText, Off
-
-DetectHiddenWindows, On
-SetTitleMatchMode, 2
-
-; Buffers any physical keyboard or mouse activity during the send
-; Therefore improves reliability of Click and MouseMove inside zoom()
-SendMode, Input
-
-voice := ComObjCreate("SAPI.SpVoice")
-voice.Volume := 100
-voice.Rate := 2
-
+﻿
+; TODO - Allow user to change the default dir where saved files are opened from?
 EnvGet, homeDir, USERPROFILE
 dir := homeDir . "\Documents"
 
-; Open blank wordpad document
-F1::
+openNewDoc() {
     Run wordpad.exe
 
     WinWait Document - WordPad ahk_exe WORDPAD.EXE, , 3
 
     if !ErrorLevel {
-        Sleep 100 ; Incase multiple new documents are opened
+        Sleep 100 ; Incase there is already a blank document open
         WinMaximize
         zoom()
     }
-return
+}
 
-; Open file in wordpad
-F2::
+openSavedDoc() {
     FileSelectFile, path, , % dir, Select Document, All Wordpad Documents (*.rtf; *.docx; *.odt; *.txt)
 
     if (path = "") {
@@ -57,7 +37,7 @@ F2::
         WinMaximize
         zoom()
     }
-return
+}
 
 zoom() {
     Click, %A_CaretX%, %A_CaretY%
@@ -67,10 +47,8 @@ zoom() {
     sleep 50
     MouseMove, A_CaretX+20, A_CaretY+20, 0
 }
-Return
 
-; Reads text in currently open wordpad file
-F4::
+readDoc() {
     If WinActive("ahk_exe WORDPAD.EXE") {
         WinGetText, text
 
@@ -85,10 +63,29 @@ F4::
         }
 
         Loop % lines.MaxIndex() - ignoreLines {
-            voice.Speak(lines[A_Index + ignoreLines], 1)
+            VoiceTyped.Speak(lines[A_Index + ignoreLines], 1)
         }            
     }
-Return
+}
+
+saveDoc() {
+    if (WinActive("ahk_exe WORDPAD.EXE")) {
+        Send ^s
+        sleep 50
+        WinWait, Save As ahk_exe wordpad.exe,,0
+
+        ; Pop Up confirmation message for a regular save
+        if ErrorLevel {
+            Gui, Font, s40
+            Gui, Color, EEAA99 ; Pink/Orange background
+            Gui, Add, Text,, Saved!
+            Gui, -Caption +AlwaysOnTop +ToolWindow +Border
+            Gui, Show, , saved
+            sleep 1000
+            Gui, Destroy
+        }
+    }
+}
 
 ObjIndexOf(obj, item, case_sensitive := false) {
 	for i, val in obj {
@@ -96,4 +93,3 @@ ObjIndexOf(obj, item, case_sensitive := false) {
 			return i
 	}
 }
-Return

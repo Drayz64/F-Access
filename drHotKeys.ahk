@@ -6,10 +6,6 @@ DetectHiddenWindows, On
 SetTitleMatchMode, 2
 #SingleInstance, force
 
-;-------------------------------------------------------------------------------
-; Auto Execute - Until return, exit, hotkey/string encountered
-;-------------------------------------------------------------------------------
-
 OnExit, closeScripts
 
 global VoiceTyped   := ComObjCreate("SAPI.SpVoice")
@@ -32,10 +28,7 @@ inputHook.OnEnd := Func("speakWord")
 
 #Include, settingsGUI.ahk
 #Include, drInput.ahk
-
-; TODO
-; - Pause voice when trying to restart???
-; - Commands purge what is being spoken - is that okay?
+#Include, drWordPad.ahk
 
 constructGUI()
 startScripts()
@@ -51,7 +44,7 @@ speak("F-Access Running", 1)
 Return
 ;-------------------------------------------------------------------------------
 
-F3::
+F12::
     if WinActive("Project Settings") {
         Gui, Hide
     }
@@ -60,23 +53,17 @@ F3::
     }
 Return
 
-; (F1 = Open new doc)     (F2 = Open saved doc)     F3 = Dictation     (F4 = Read word doc)   /   F5 = Print     F6 = Save     F7 = Magnifier     F8 = Input speaker
-
-toggleDictation:
-    Send, #h
-Return
-
-print:
+print() {   
     defaultPrinter := getDefaultPrinter()
 
     if (defaultPrinter = False) {
-        speak("Unable to find your default printer", 0)
+        speak("Please set a default printer", 0)
         Return
     }
 
     printerName := StrSplit(defaultPrinter, A_Space) ; Incase of a long printer name
 
-    if (offlineCheckAllowed and printerOffline(defaultPrinter)) {
+    if (printerOffline(defaultPrinter)) {
         speak("Unable to print, please turn on your " printerName[1] " printer", 1)
         Return
     }
@@ -85,19 +72,28 @@ print:
     Sleep 500
     Send {Enter}
     speak("Printing", 1)
-Return
+}
 
 getDefaultPrinter() {
-    if !(DllCall("winspool.drv\GetDefaultPrinter", "ptr", 0, "uint*", size)) { ; Getting the required size for the buffer to hold the printer's name
+    ; https://docs.microsoft.com/en-us/windows/win32/printdocs/getdefaultprinter
+
+    if !(DllCall("winspool.drv\GetDefaultPrinter", "ptr",0, "uint*",size)) { ; Getting the required size for the buffer to hold the printer's name
         size := VarSetCapacity(printer, size*2, 0)
 
-        if (DllCall("winspool.drv\GetDefaultPrinter", "str", printer, "uint*", size))
+        if (DllCall("winspool.drv\GetDefaultPrinter", "str",printer, "uint*",size)) {
             Return printer
+        }            
     }
     Return False
 }
 
 printerOffline(printerName) {
+    global offlineCheckAllowed
+
+    if (!offlineCheckAllowed) {
+        return False
+    }
+
     RegRead, printerAttributes, HKLM\System\CurrentControlSet\Control\Print\Printers\%printerName%, Attributes
 
     ; *Status flags method*
@@ -117,53 +113,28 @@ printerOffline(printerName) {
     ; msgbox % Format("0x{:X}", printerAttributes)
 
     if (printerAttributes = 3584) {
-        Return True ; Printer offline
+        return True ; Printer offline
     }
 
     return False
 }
 
-; toggleOfflineCheck:
-;     offlineCheckAllowed := !offlineCheckAllowed
+toggleDictation() {
+    Send, #h
+}
 
-;     str := "Disabled"
-;     if (offlineCheckAllowed)
-;         str := "Enabled"
-    
-;     speak(str " offline printer check", 1)
-; Return
+toggleMag() {
+    global drMagnifier
 
-
-saveDoc:
-    if (WinActive("ahk_exe WORDPAD.EXE")) {
-        Send ^s
-        sleep 50
-        WinWait, Save As ahk_exe wordpad.exe,,0
-
-        ; Pop Up confirmation message for a regular save
-        if ErrorLevel {
-            Gui, Font, s40
-            Gui, Color, EEAA99 ; Pink/Orange background
-            Gui, Add, Text,, Saved!
-            Gui, -Caption +AlwaysOnTop +ToolWindow +Border
-            Gui, Show, , saved
-            sleep 1000
-            Gui, Destroy
-        }
-    }
-Return
-
-
-toggleMag:
     if WinExist(drMagnifier "ahk_class AutoHotkey") {
         WinClose
-        speak("Magnifier Closed", 3) ; TODO - Is purging okay?
+        speak("Magnifier Closed", 3) ; TODO - Only purge if currently saying magnifier open?
     }
     else {
         Run, %drMagnifier% "ahk_class AutoHotkey"
         speak("Magnifier Open", 3)
     }
-Return
+}
 
 ; Zoom in magnifier or zoom in general
 NumpadAdd::
@@ -185,24 +156,10 @@ NumpadSub::
 	}
 Return
 
-; ; Toggle input speaker
-; F8::
-;     if WinExist(drInput "ahk_class AutoHotkey") {
-;         WinKill
-;         speak("Input speaker closed", 1)
-;     }
-;     else {
-;         Run, %drInput% "ahk_class AutoHotkey"
-;         speak("Input speaker running", 1)
-;     }
-; Return
-
-
 restart:
-    ; Close the 2 scripts that use sapi speak() before restarting
+    ; Close scripts that use sapi speak() before restarting
     ; as restarting won't work if speak() is speaking
     WinClose, % drWordPad "ahk_class AutoHotkey"
-    ; WinClose, % drInput   "ahk_class AutoHotkey"
 
     speak("Restarting", 3) ; Asynchronous | PurgeBeforeSpeach
     VoiceCommand.WaitUntilDone(-1)
@@ -234,6 +191,4 @@ closeScripts:
     for index, name in scriptNames {
         WinClose, % name "ahk_class AutoHotkey"
     }
-
-    ; IniWrite, % offlineCheckAllowed, % settingsFile, Printing, OfflineCheck
 ExitApp
