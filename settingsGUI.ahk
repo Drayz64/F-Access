@@ -1,11 +1,8 @@
 ﻿; TODO:
-;
 ; - Handle duplicate hotkeys???
 ; - Prevent hotkeys being the same as the hotkey to open settings (if I decide to use a hotkey to open settings)
 ; - Grey voice controls if voice muted???
-;
 ; - Can it handle new settings being added postlaunch when users have an exisitng settingsFile?
-
 
 hotkeyDescr := [ "Open new word pad document"
                 ,"Open saved word pad document"

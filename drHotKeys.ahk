@@ -13,7 +13,7 @@ global VoiceCommand := ComObjCreate("SAPI.SpVoice")
 VoiceCommand.Priority := 1 ; Alert priority
 
 ; Alternative fix is to loop through files in working dir and populate scriptNames with files starting in "dr"
-global scriptNames := ["drMagnifier", "drWordPad"]
+global scriptNames := ["drMagnifier"]
 
 ; Append each file name with the file extension of drHotKeys
 SplitPath, A_ScriptName, , , extension
@@ -128,7 +128,7 @@ toggleMag() {
 
     if WinExist(drMagnifier "ahk_class AutoHotkey") {
         WinClose
-        speak("Magnifier Closed", 3) ; TODO - Only purge if currently saying magnifier open?
+        speak("Magnifier Closed", 3)
     }
     else {
         Run, %drMagnifier% "ahk_class AutoHotkey"
@@ -157,9 +157,7 @@ NumpadSub::
 Return
 
 restart:
-    ; Close scripts that use sapi speak() before restarting
-    ; as restarting won't work if speak() is speaking
-    WinClose, % drWordPad "ahk_class AutoHotkey"
+    VoiceTyped.Speak("", 2) ; Purges VoiceTypes - handling the case of a very long word being spoken
 
     speak("Restarting", 3) ; Asynchronous | PurgeBeforeSpeach
     VoiceCommand.WaitUntilDone(-1)
