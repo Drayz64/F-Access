@@ -1,7 +1,7 @@
 ﻿sentence := ""
 
 speakWord(inputHook) {
-    global muteTyped, sentence
+    global sentence
 
     reason := inputHook.EndReason
 
@@ -11,7 +11,7 @@ speakWord(inputHook) {
 
         sentence .= inputHook.Input . " "
 
-        if (sentence != "" and !muteTyped) { ; TODO - !muteTyped not needed now?
+        if (sentence != "") {
 
             if (VoiceTyped.Status.RunningState == 2) {
                 if (!checking) {
@@ -26,7 +26,6 @@ speakWord(inputHook) {
         }
     }
     else if (reason == "Stopped") {
-        ; muteTyped = True
         Return
     }
 
