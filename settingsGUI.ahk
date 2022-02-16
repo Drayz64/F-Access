@@ -3,6 +3,7 @@
 ; - Prevent hotkeys being the same as the hotkey to open settings (if I decide to use a hotkey to open settings)
 ; - Grey voice controls if voice muted???
 ; - Can it handle new settings being added postlaunch when users have an exisitng settingsFile?
+; - The control that is autoselected is a hotkey input so easy to enter something there
 
 hotkeyDescr := [ "Open new word pad document"
                 ,"Open saved word pad document"
@@ -60,15 +61,21 @@ constructGUI() {
     Gui, Add, CheckBox, xm vofflineCheckAllowed gEnableSave Checked%offlineCheckAllowed%, % "Enable printer offline check?"   
     Gui, Add, CheckBox, xm vmagStartUp          gEnableSave Checked%magStartup%         , % "Open magnifier on startup of F-Access"
 
-
-    ;TODO - Handle user having no voices??? Show error message text in gui and link to windows voice settings
+    ; Voices
     voicesList := ""
     for v in VoiceTyped.GetVoices() {
         voiceName  := v.GetAttribute("Name")
         voicesList .= voiceName . "|"
     }
     voicesList := RTrim(voicesList, "|")
+    
+    if (voicesList == "") {        
+        Gui, Font, cRed
+        Gui, Add, Link, xm y+20, No installed languages detected - please add a <a href="ms-settings:regionlanguage">language</a>
+        Gui, Font, cDefault
+    }    
 
+    ; Retrieving saved voice settings and applying them to the voice
     IniRead, CommandVol  , % settingsFile, CommandVoice, Volume, 100
     IniRead, CommandRate , % settingsFile, CommandVoice, Rate  , 0
     IniRead, CommandVoice, % settingsFile, CommandVoice, Voice , 1
@@ -114,7 +121,6 @@ constructGUI() {
     Gui, Add, Button, xm   w%buttonW% vDefaultButton gDefault, Default
     Gui, Add, Button, x+10 w%buttonW% vCancelButton  gCancel , Cancel
     Gui, Add, Button, x+10 w%buttonW% vSaveButton    gSave   , Save
-    Gui, Add, Button, x+10 w%buttonW% vExitButton    gExit   , Exit
     GuiControl, Disable, SaveButton
     GuiControl, Disable, CancelButton
     
@@ -142,14 +148,15 @@ Save() {
     global
 
     local prevTypedMute := TypedMute
-
     Gui, Submit, NoHide
-
-    ; TODO - Save unchanged hotkeys? if prev = custom then continue?
 
     for i, name in hotkeyNames {
         local prev   := prevHotKey[i]
         local custom := "Custom" . i
+
+        if (prev == %custom%) {
+            continue
+        }
 
         ; Removing old hotkey
         if (prev != "") {
@@ -204,8 +211,6 @@ Save() {
 Default() {
     global
 
-    ; TODO - Defaults for the other settings
-
     for i, key in defaultKeys {
         ; Using custom just as a ControlID
         custom := "Custom" . i               
@@ -229,21 +234,17 @@ Cancel() {
     for i, name in hotkeyNames {
         IniRead, key, % settingsFile, HotKeys, % name, % defaultKeys[i]
 
+        ; key := prevHotKey[i] ; Does seem to work
+
         custom := "Custom" . i               
         GuiControl, , % custom, % key
     }
 
     GuiControl, , offlineCheckAllowed, % offlineCheckAllowed
-    GuiControl, , mute, % mute
-    GuiControl, , muteTyped, % muteTyped
 
     GuiControl, Disable, CancelButton
     GuiControl, Disable, SaveButton
     GuiControl, Enable, DefaultButton
-}
-
-Exit() {
-    Gui, Hide
 }
 
 EnableSave() {
