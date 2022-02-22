@@ -6,7 +6,7 @@ DetectHiddenWindows, On
 SetTitleMatchMode, 2
 #SingleInstance, force
 
-OnExit, closeScripts
+OnExit("closeScripts")
 
 global VoiceTyped   := ComObjCreate("SAPI.SpVoice")
 global VoiceCommand := ComObjCreate("SAPI.SpVoice")
@@ -21,7 +21,6 @@ for index, fileName in scriptNames {
     scriptNames[index] := fileName "." extension
 }
 drMagnifier := % scriptNames[1]
-drWordPad   := % scriptNames[2]
 
 inputHook := InputHook("V", "{Space}.{`,}{?}{!}{Enter}")
 inputHook.OnEnd := Func("speakWord")
@@ -156,13 +155,13 @@ NumpadSub::
 	}
 Return
 
-restart:
+restart() {
     VoiceTyped.Speak("", 2) ; Purges VoiceTypes - handling the case of a very long word being spoken
 
     speak("Restarting", 3) ; Asynchronous | PurgeBeforeSpeach
     VoiceCommand.WaitUntilDone(-1)
     Reload
-Return
+}
 
 speak(sentence, flag := 0) {
     global CommandMute
@@ -185,8 +184,8 @@ startScripts() {
     }
 }
 
-closeScripts:
+closeScripts() {
     for index, name in scriptNames {
         WinClose, % name "ahk_class AutoHotkey"
     }
-ExitApp
+}
