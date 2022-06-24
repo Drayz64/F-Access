@@ -1,6 +1,8 @@
 # F-Access
 Personalised function keys for better accessibility, specifically for using WordPad
 
+![alt text](gifs/Magnifier.gif)
+
 ## Features
 1. A docked screen magnifier
     - Includes a frame around the mouse showing what will be magnified
