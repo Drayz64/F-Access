@@ -1,8 +1,9 @@
 # F-Access
 Personalised function keys for better accessibility, specifically for using WordPad
 
-![alt text](gifs/Video.mp4) 
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/o5JKDCZolKA/0.jpg)](https://www.youtube.com/watch?v=o5JKDCZolKA)
+
+https://user-images.githubusercontent.com/65258846/175720332-499a5718-b280-4a63-84c4-68e4c97c5652.mp4
+
 
 ## Features
 1. A docked screen magnifier
